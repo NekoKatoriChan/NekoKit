@@ -1,5 +1,8 @@
 write "Go is cute!\n"
-writeln "Go is awesome!"
+writeln "Go is awesome! Can you write something here and tap enter?"
+read x
+writeln "Awesome! It's "
+write x
 // Comment
-susu aha!
-writeln "Comment work!"
+susu
+writeln "susu not work!"
