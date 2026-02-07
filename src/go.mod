@@ -1,3 +1,3 @@
-module nekokit
+module neko
 
-go 1.25.6
+go 1.25.0

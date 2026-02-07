@@ -1,0 +1,49 @@
+clear
+border double
+
+writeln "🐱 KITTY QUEST 🐱"
+writeln ""
+
+read -p "enter your cat name: " playerName
+give playerHP=100
+give gold=0
+
+gameloop start
+  clear
+  writeln "========== ADVENTURE =========="
+  stat "name" $playerName
+  stat "health" $playerHP  
+  stat "gold" $gold
+  writeln "==============================="
+  writeln ""
+  
+  dialog "you encounter a wild mouse!"
+  
+  writeln "[1] fight"
+  writeln "[2] run away"
+  prompt "choice: "
+  read choice
+  
+  if choice == "1"
+    random damage 15
+    damage playerHP $damage
+    writeln ""
+    dialog "mouse attacks! took $damage damage!"
+    
+    if playerHP <= 0
+      writeln ""
+      writeln "💀 GAME OVER 💀"
+      susu
+    }
+    
+    score gold 10
+    writeln "you won! found 10 gold~"
+  } else {
+    writeln ""
+    dialog "you ran away safely! coward..."
+  }
+  
+  writeln ""
+  prompt "press enter to continue..."
+  read dummy
+gameloop end

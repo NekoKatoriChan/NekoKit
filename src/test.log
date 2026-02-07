@@ -1,0 +1,65 @@
+
+=== GENERATED GO CODE ===
+package main
+import (
+    "fmt"
+    "os"
+    "bufio"
+    "strings"
+    "math/rand"
+    "time"
+)
+func main() {
+    rand.Seed(time.Now().UnixNano())
+    reader := bufio.NewReader(os.Stdin)
+    fmt.Print("\033[2J\033[H")
+    fmt.Println("╔═════════════════════╗")
+    fmt.Println("║                     ║")
+    fmt.Println("╚═════════════════════╝")
+    fmt.Println("🐱 KITTY QUEST 🐱")
+    fmt.Println("")
+    fmt.Print("enter your cat name: ")
+    playerName := ""
+    playerName, _ = reader.ReadString('\n')
+    playerName = strings.TrimSpace(playerName)
+    playerHP := 100
+    gold := 0
+    for {
+        fmt.Print("\033[2J\033[H")
+        fmt.Println("========== ADVENTURE ==========")
+        fmt.Printf("name: %v\n", playerName)
+        fmt.Printf("health: %v\n", playerHP)
+        fmt.Printf("gold: %v\n", gold)
+        fmt.Println("===============================")
+        fmt.Println("")
+        fmt.Println(">>> " + "you encounter a wild mouse!")
+        fmt.Println("[1] fight")
+        fmt.Println("[2] run away")
+        fmt.Print(" > " + "choice: ")
+        choice := ""
+        choice, _ = reader.ReadString('\n')
+        choice = strings.TrimSpace(choice)
+        if choice == "1" {
+            damage := rand.Intn(15)
+            playerHP -= damage
+            fmt.Println("")
+            fmt.Println(">>> " + fmt.Sprintf("mouse attacks! took %v damage!", damage))
+            if playerHP <= 0 {
+                fmt.Println("")
+                fmt.Println("💀 GAME OVER 💀")
+                os.Exit(0)
+            }
+            gold += 10
+            fmt.Println("you won! found 10 gold~")
+        } else {
+            fmt.Println("")
+            fmt.Println(">>> " + "you ran away safely! coward...")
+        }
+        fmt.Println("")
+        fmt.Print(" > " + "press enter to continue...")
+        dummy := ""
+        dummy, _ = reader.ReadString('\n')
+        dummy = strings.TrimSpace(dummy)
+        }
+}
+=== END GO CODE ===
