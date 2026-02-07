@@ -10,7 +10,7 @@ func RunGo(code string) {
 	tmpFile := "nk_tmp.go"
 	os.WriteFile(tmpFile, []byte(code), 0644)
 	cmd := exec.Command("go", "run", tmpFile)
-	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
+	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
 	cmd.Run()
 	os.Remove(tmpFile)
 }

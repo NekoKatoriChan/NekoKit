@@ -1,0 +1,118 @@
+clear
+border double
+writeln "═══════════════════════════════════════"
+writeln "     DRAGON'S LAIR - Text Adventure     "
+writeln "═══════════════════════════════════════"
+writeln ""
+
+read -p "What is your brave adventurer's name? " playerName
+
+clear
+dialog "Welcome, $playerName! You stand before the Dragon's Lair..."
+writeln ""
+writeln "The ancient cave looms before you, dark and foreboding."
+writeln "You must defeat the dragon to save the kingdom!"
+writeln ""
+read -p "Press Enter to begin your quest..." dummy
+
+random playerHP 100
+random dragonHP 80
+
+score totalScore 0
+level currentLevel 1
+
+gameloop start
+    clear
+    border simple
+    writeln ""
+    stat "Your HP" playerHP
+    stat "Dragon HP" dragonHP
+    stat "Level" currentLevel
+    stat "Score" totalScore
+    writeln ""
+    border simple
+    writeln ""
+    
+    dialog "What will you do, $playerName?"
+    writeln ""
+    writeln "[1] Attack with sword"
+    writeln "[2] Cast fireball spell"
+    writeln "[3] Drink healing potion"
+    writeln "[4] Attempt to flee"
+    writeln ""
+    read -p "Choose your action (1-4): " action
+    writeln ""
+    
+    if action == "1"
+        random swordDamage 15
+        damage dragonHP $swordDamage
+        writeln "You strike with your sword for $swordDamage damage!"
+        score totalScore 10
+    }
+    
+    if action == "2"
+        random spellDamage 25
+        damage dragonHP $spellDamage
+        writeln "You cast a powerful fireball for $spellDamage damage!"
+        score totalScore 20
+    }
+    
+    if action == "3"
+        random healAmount 20
+        heal playerHP $healAmount
+        writeln "You drink a healing potion and recover $healAmount HP!"
+    }
+    
+    if action == "4"
+        random escapeChance 2
+        if escapeChance == 1
+            writeln "You successfully escaped from the dragon!"
+            writeln "You retreat to the kingdom, a coward but alive..."
+            writeln ""
+            writeln "Final Score: $totalScore"
+            susu
+        }
+        if escapeChance == 0
+            writeln "The dragon blocks your escape!"
+            writeln "You must stand and fight!"
+        }
+    }
+    
+    if dragonHP <= 0
+        clear
+        border double
+        writeln ""
+        writeln "VICTORY! You have slain the dragon!"
+        writeln ""
+        writeln "The kingdom is saved, $playerName!"
+        writeln ""
+        score totalScore 100
+        writeln "Final Score: $totalScore"
+        writeln ""
+        border double
+        susu
+    }
+    
+    random dragonAttack 20
+    damage playerHP $dragonAttack
+    writeln "The dragon breathes fire and deals $dragonAttack damage to you!"
+    writeln ""
+    
+    if playerHP <= 0
+        clear
+        border double
+        writeln ""
+        writeln "DEFEAT! The dragon has defeated you..."
+        writeln ""
+        writeln "You fall to the ground, your adventure ends here."
+        writeln "Better luck next time, $playerName..."
+        writeln ""
+        writeln "Final Score: $totalScore"
+        writeln ""
+        border double
+        susu
+    }
+    
+    read -p "Press Enter to continue the battle..." dummy
+
+gameloop end
