@@ -2,10 +2,13 @@ package main
 
 import "strings"
 
+// this is the transpiler for making silly game scripts into proper go code!
+// made with love and fish treats ♡
 
+// meow meow helper functions start here!
 
-// Help
-
+// this one turns "$variable" thingies into fmt.Sprintf stuff
+// pretty clever, nya? turns "hello $name" into proper go format strings~
 func transpileStringInterpolation(arg string) string {
     if strings.HasPrefix(arg, "\"") && strings.HasSuffix(arg, "\"") && strings.Contains(arg, "$") {
         content := arg[1 : len(arg)-1]
@@ -46,7 +49,8 @@ func transpileStringInterpolation(arg string) string {
     return arg
 }
 
-// eh, work as a variable, example "writeln "hello, $s" 
+// removes the $ from variable names, like when we see "$s" it becomes just "s"
+// purrfect for cleaning up our variable syntax~ works as a grooming tool, meow!
 func stripDollar(s string) string {
     if strings.HasPrefix(s, "$") {
         return s[1:]
@@ -54,10 +58,14 @@ func stripDollar(s string) string {
     return s
 }
 
+// checks if a byte is a letter, number, or underscore~
+// basically asking "is this a valid part of a variable name?" nya!
 func isAlphaNumericOrUnderscore(b byte) bool {
     return (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || (b >= '0' && b <= '9') || b == '_'
 }
 
+// this expands the "~/" path into the actual home directory path
+// cats love having their home paths expanded, it's cozy~ 
 func expandPath(path string) string {
     if strings.HasPrefix(path, "~/") {
         return "os.ExpandEnv(\"$HOME" + path[1:] + "\")"
@@ -65,6 +73,8 @@ func expandPath(path string) string {
     return "\"" + path + "\""
 }
 
+// grabs just the filename from a path and removes the extension
+// like finding the treat inside the wrapper!
 func extractFilename(path string) string {
     parts := strings.Split(path, "/")
     filename := parts[len(parts)-1]
@@ -75,7 +85,9 @@ func extractFilename(path string) string {
     return filename
 }
 
-// Transpiler core
+// ✨ THE BIG TRANSPILER FUNCTION! ✨
+// this is where all the magic happens, turning cute game script into proper go code
+// it's like translating cat into human language~ very sophisticated, nya!
 func Transpile(input string) string {
     lines := strings.Split(input, "\n")
     var out []string
@@ -97,7 +109,7 @@ func Transpile(input string) string {
             hasFileOps = true
         }
     }
-		// basic import thing
+		// figuring out what imports we need, like gathering all our favorite toys before playtime!
     out = append(out,
         "package main",
         "import (",
@@ -148,7 +160,8 @@ func Transpile(input string) string {
             continue
         }
         indent := strings.Repeat("    ", indentLevel)
-		// The game loops.
+		// here comes the fun part! parsing all the silly game commands~ 
+		// paw through each command type and turn it into go code, m3ow.
         switch {
         case line == "gameloop start":
             out = append(out, indent+"for {")
@@ -174,7 +187,8 @@ func Transpile(input string) string {
                 out = append(out, indent+"fmt.Println(\"▓                   ▓\")")
                 out = append(out, indent+"fmt.Println(\"▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓\")")
             }
-           // Dialog, for some reason. preset gamey thing
+           // fancy dialog boxes! makes the game feel all professional-like~ 
+           // adds ">>>" to make it look like someone important is talking, meow!
         case strings.HasPrefix(line, "dialog "):
             dialogText := strings.TrimPrefix(line, "dialog ")
             goCode := transpileStringInterpolation(dialogText)
@@ -232,7 +246,7 @@ func Transpile(input string) string {
                 }
                 out = append(out, indent+"fmt.Printf("+formatStr+", "+statValue+")")
             }
-            // This is load/save file
+            // loading and saving files! like hiding your toys and finding them later
         case strings.HasPrefix(line, "load "):
             filePath := strings.TrimPrefix(line, "load ")
             pathExpr := expandPath(filePath)
@@ -299,7 +313,8 @@ func Transpile(input string) string {
                 out = append(out, indent+varName+" := rand.Intn("+maxVal+")")
                 declared[varName] = true
             }
-            // Core
+            // the core stuff! conditionals, loops, basic i/o~ 
+            // this is like the cat bed - essential and comfy
         case strings.HasPrefix(line, "if "):
             out = append(out, indent+"if "+strings.TrimPrefix(line, "if ")+" {")
             indentLevel++
@@ -338,7 +353,27 @@ func Transpile(input string) string {
             varName := strings.TrimPrefix(line, "read ")
             out = append(out, indent+varName+" := \"\"", indent+varName+", _ = reader.ReadString('\\n')", indent+varName+" = strings.TrimSpace("+varName+")")
             declared[varName] = true
-            // Exit 0, kill the program.
+            // assigning variables with 'give'! such a polite way to set values~
+            // much nicer than just "x = 10", we say "give x=10" like offering a gift!
+        case strings.HasPrefix(line, "give "):
+            rest := strings.TrimPrefix(line, "give ")
+            parts := strings.SplitN(rest, "=", 2)
+            if len(parts) == 2 {
+                varName := strings.TrimSpace(parts[0])
+                value := strings.TrimSpace(parts[1])
+                
+                // Check if it's a string literal or needs interpolation
+                goValue := transpileStringInterpolation(value)
+                
+                if !declared[varName] {
+                    out = append(out, indent+varName+" := "+goValue)
+                    declared[varName] = true
+                } else {
+                    out = append(out, indent+varName+" = "+goValue)
+                }
+            }
+            // "susu" means bye-bye! time to end the program and take a nap~ 
+            // (honestly such a silly name for exit, but that's what makes it fun!)
         case strings.HasPrefix(line, "susu"):
             out = append(out, indent+"os.Exit(0)")
         }
