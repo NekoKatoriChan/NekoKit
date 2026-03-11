@@ -1,0 +1,5 @@
+clear
+writeln "hello!"
+sleep 2
+writeln "Go is cute!"
+susu

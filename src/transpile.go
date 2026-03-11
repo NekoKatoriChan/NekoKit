@@ -13,12 +13,13 @@ import (
 // this one turns "$variable" thingies into fmt.Sprintf stuff
 // pretty clever, nya? turns "hello $name" into proper go format strings~
 func transpileStringInterpolation(arg string) string {
-	if strings.HasPrefix(arg, "\"") && strings.HasSuffix(arg, "\"") && strings.Contains(arg, "$") {
+	if strings.HasPrefix(arg, "\"") && strings.HasSuffix(arg, "\"") {
 		content := arg[1 : len(arg)-1]
 
 		var vars []string
 		var formatStr strings.Builder
 		formatStr.WriteString("\"")
+		hasVars := false
 
 		i := 0
 		for i < len(content) {
@@ -30,6 +31,7 @@ func transpileStringInterpolation(arg string) string {
 				varName := content[i+1 : j]
 				vars = append(vars, varName)
 				formatStr.WriteString("%v")
+				hasVars = true
 				i = j
 			} else {
 				if content[i] == '"' {
@@ -42,12 +44,17 @@ func transpileStringInterpolation(arg string) string {
 		}
 		formatStr.WriteString("\"")
 
-		result := "fmt.Sprintf(" + formatStr.String()
-		for _, v := range vars {
-			result += ", " + v
+		// if we have variables, use fmt.Sprintf; otherwise just escape strings
+		if hasVars {
+			result := "fmt.Sprintf(" + formatStr.String()
+			for _, v := range vars {
+				result += ", " + v
+			}
+			result += ")"
+			return result
+		} else {
+			return formatStr.String()
 		}
-		result += ")"
-		return result
 	}
 	return arg
 }
@@ -88,7 +95,6 @@ func extractFilename(path string) string {
 	return filename
 }
 
-// ✨ THE BIG TRANSPILER FUNCTION! ✨
 // this is where all the magic happens, turning cute game script into proper go code
 // it's like translating cat into human language~ very sophisticated, nya!
 func Transpile(input string) string {
@@ -108,6 +114,9 @@ func transpileInternal(input string, verbose bool) string {
 	hasRead := false
 	hasRandom := false
 	hasFileOps := false
+	hasRun := false
+	hasFmt := false
+	hasSusu := false
 	declared := make(map[string]bool)
 
 	// Statistics tracking for verbose output~ nya!
@@ -123,11 +132,15 @@ func transpileInternal(input string, verbose bool) string {
 		"heal":         0,
 		"score":        0,
 		"level":        0,
+		"run":          0,
 	}
 
 	for _, raw := range lines {
 		line := strings.TrimSpace(raw)
-		if strings.HasPrefix(line, "read ") {
+		if strings.HasPrefix(line, "read -p ") {
+			hasRead = true
+			hasFmt = true
+		} else if strings.HasPrefix(line, "read ") {
 			hasRead = true
 		}
 		if strings.HasPrefix(line, "random ") {
@@ -136,15 +149,33 @@ func transpileInternal(input string, verbose bool) string {
 		if strings.HasPrefix(line, "load ") || strings.HasPrefix(line, "save ") {
 			hasFileOps = true
 		}
+		if strings.HasPrefix(line, "run ") {
+			hasRun = true
+		}
+		if strings.HasPrefix(line, "susu") {
+			hasSusu = true
+		}
+		if strings.HasPrefix(line, "clear") || strings.HasPrefix(line, "border ") ||
+			strings.HasPrefix(line, "dialog ") || strings.HasPrefix(line, "menu ") ||
+			strings.HasPrefix(line, "prompt ") || strings.HasPrefix(line, "stat ") ||
+			strings.HasPrefix(line, "write ") || strings.HasPrefix(line, "writeln ") {
+			hasFmt = true
+		}
 	}
 
 	// figuring out what imports we need, like gathering all our favorite toys before playtime!
 	out = append(out,
 		"package main",
 		"import (",
-		"    \"fmt\"",
-		"    \"os\"",
 	)
+
+	if hasFmt {
+		out = append(out, "    \"fmt\"")
+	}
+
+	if hasRead || hasFileOps || hasSusu {
+		out = append(out, "    \"os\"")
+	}
 
 	if hasRead {
 		out = append(out,
@@ -163,6 +194,12 @@ func transpileInternal(input string, verbose bool) string {
 	if hasFileOps {
 		out = append(out,
 			"    \"io/ioutil\"",
+		)
+	}
+
+	if hasRun {
+		out = append(out,
+			"    \"os/exec\"",
 		)
 	}
 
@@ -185,8 +222,12 @@ func transpileInternal(input string, verbose bool) string {
 
 	if verbose {
 		fmt.Println("Import analysis:")
-		fmt.Printf("         - fmt: yes\n")
-		fmt.Printf("         - os: yes\n")
+		if hasFmt {
+			fmt.Printf("         - fmt: yes\n")
+		}
+		if hasRead || hasFileOps || hasSusu {
+			fmt.Printf("         - os: yes\n")
+		}
 		if hasRead {
 			fmt.Printf("         - bufio, strings: yes (read command detected)\n")
 		}
@@ -195,6 +236,9 @@ func transpileInternal(input string, verbose bool) string {
 		}
 		if hasFileOps {
 			fmt.Printf("         - io/ioutil: yes (file operations detected)\n")
+		}
+		if hasRun {
+			fmt.Printf("         - os/exec: yes (run command detected)\n")
 		}
 	}
 
@@ -482,6 +526,20 @@ func transpileInternal(input string, verbose bool) string {
 			if verbose {
 				fmt.Println("Detected: susu (program exit)")
 			}
+		case strings.HasPrefix(line, "run "):
+			stats["run"]++
+			cmd := strings.TrimPrefix(line, "run ")
+			// run something in terminal, most of it!
+			escapedCmd := strings.ReplaceAll(cmd, "\"", "\\\"")
+			out = append(out,
+				indent+"cmd := exec.Command(\"sh\", \"-c\", \""+escapedCmd+"\")",
+				indent+"cmd.Stdout = os.Stdout",
+				indent+"cmd.Stderr = os.Stderr",
+				indent+"cmd.Run()",
+			)
+			if verbose {
+				fmt.Printf("Detected: run %s\n", cmd)
+			}
 		}
 	}
 	out = append(out, "}")
@@ -499,6 +557,7 @@ func transpileInternal(input string, verbose bool) string {
 		fmt.Printf("Heal operations: %d\n", stats["heal"])
 		fmt.Printf("Score operations: %d\n", stats["score"])
 		fmt.Printf("Level operations: %d\n", stats["level"])
+		fmt.Printf("Run commands: %d\n", stats["run"])
 		fmt.Println("=======================")
 	}
 
