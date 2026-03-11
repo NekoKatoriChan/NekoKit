@@ -10,15 +10,18 @@ import (
 
 // meow meow helper functions start here!
 
+
+// STRING INTERPOLATION:
 // this one turns "$variable" thingies into fmt.Sprintf stuff
 // pretty clever, nya? turns "hello $name" into proper go format strings~
 func transpileStringInterpolation(arg string) string {
-	if strings.HasPrefix(arg, "\"") && strings.HasSuffix(arg, "\"") && strings.Contains(arg, "$") {
+	if strings.HasPrefix(arg, "\"") && strings.HasSuffix(arg, "\"") {
 		content := arg[1 : len(arg)-1]
 
 		var vars []string
 		var formatStr strings.Builder
 		formatStr.WriteString("\"")
+		hasVars := false
 
 		i := 0
 		for i < len(content) {
@@ -30,6 +33,7 @@ func transpileStringInterpolation(arg string) string {
 				varName := content[i+1 : j]
 				vars = append(vars, varName)
 				formatStr.WriteString("%v")
+				hasVars = true
 				i = j
 			} else {
 				if content[i] == '"' {
@@ -42,12 +46,17 @@ func transpileStringInterpolation(arg string) string {
 		}
 		formatStr.WriteString("\"")
 
-		result := "fmt.Sprintf(" + formatStr.String()
-		for _, v := range vars {
-			result += ", " + v
+		// if we have variables, use fmt.Sprintf; otherwise just escape strings
+		if hasVars {
+			result := "fmt.Sprintf(" + formatStr.String()
+			for _, v := range vars {
+				result += ", " + v
+			}
+			result += ")"
+			return result
+		} else {
+			return formatStr.String()
 		}
-		result += ")"
-		return result
 	}
 	return arg
 }
@@ -88,7 +97,6 @@ func extractFilename(path string) string {
 	return filename
 }
 
-// ✨ THE BIG TRANSPILER FUNCTION! ✨
 // this is where all the magic happens, turning cute game script into proper go code
 // it's like translating cat into human language~ very sophisticated, nya!
 func Transpile(input string) string {
@@ -108,9 +116,15 @@ func transpileInternal(input string, verbose bool) string {
 	hasRead := false
 	hasRandom := false
 	hasFileOps := false
+	hasRun := false
+	hasFmt := false
+	hasSusu := false
+	hasJson := false
 	declared := make(map[string]bool)
+	gameBlocks := make(map[string]bool)         // tracks named blocks like Game1~ 
+	callonceBlocks := make(map[string]bool)     // tracks blocks that can only be called once!
 
-	// Statistics tracking for verbose output~ nya!
+	// tracking for verbose output~ nya!
 	stats := map[string]int{
 		"dialogs":      0,
 		"menus":        0,
@@ -123,11 +137,36 @@ func transpileInternal(input string, verbose bool) string {
 		"heal":         0,
 		"score":        0,
 		"level":        0,
+		"run":          0,
+	}
+
+	// first pass: find all named game blocks like "Game1 start"~ like hunting for treats!
+	for _, raw := range lines {
+		line := strings.TrimSpace(raw)
+		if strings.HasSuffix(line, " start") {
+			blockName := strings.TrimSuffix(line, " start")
+			// check if it's a named block (not gameloop)
+			if blockName != "gameloop" && !strings.Contains(blockName, " ") {
+				gameBlocks[blockName] = true
+			}
+		}
+	}
+
+	// second pass: check which blocks use callonce (marked with !callonce syntax)
+	for _, raw := range lines {
+		line := strings.TrimSpace(raw)
+		if strings.HasPrefix(line, "callonce ") {
+			blockName := strings.TrimPrefix(line, "callonce ")
+			callonceBlocks[blockName] = true
+		}
 	}
 
 	for _, raw := range lines {
 		line := strings.TrimSpace(raw)
-		if strings.HasPrefix(line, "read ") {
+		if strings.HasPrefix(line, "read -p ") {
+			hasRead = true
+			hasFmt = true
+		} else if strings.HasPrefix(line, "read ") {
 			hasRead = true
 		}
 		if strings.HasPrefix(line, "random ") {
@@ -136,15 +175,40 @@ func transpileInternal(input string, verbose bool) string {
 		if strings.HasPrefix(line, "load ") || strings.HasPrefix(line, "save ") {
 			hasFileOps = true
 		}
+		if strings.HasPrefix(line, "loadall ") || strings.HasPrefix(line, "saveall ") {
+			hasJson = true
+			hasFileOps = true
+		}
+		if strings.HasPrefix(line, "run ") {
+			hasRun = true
+		}
+		if strings.HasPrefix(line, "susu") {
+			hasSusu = true
+		}
+		if strings.HasPrefix(line, "clear") || strings.HasPrefix(line, "border ") ||
+			strings.HasPrefix(line, "dialog ") || strings.HasPrefix(line, "menu ") ||
+			strings.HasPrefix(line, "prompt ") || strings.HasPrefix(line, "stat ") ||
+			strings.HasPrefix(line, "write ") || strings.HasPrefix(line, "writeln ") {
+			hasFmt = true
+		}
+		if strings.HasPrefix(line, "peek ") {
+			hasFileOps = true
+		}
 	}
 
 	// figuring out what imports we need, like gathering all our favorite toys before playtime!
 	out = append(out,
 		"package main",
 		"import (",
-		"    \"fmt\"",
-		"    \"os\"",
 	)
+
+	if hasFmt {
+		out = append(out, "    \"fmt\"")
+	}
+
+	if hasRead || hasFileOps || hasSusu {
+		out = append(out, "    \"os\"")
+	}
 
 	if hasRead {
 		out = append(out,
@@ -166,9 +230,73 @@ func transpileInternal(input string, verbose bool) string {
 		)
 	}
 
+	if hasJson {
+		out = append(out,
+			"    \"encoding/json\"",
+		)
+	}
+
+	if hasRun {
+		out = append(out,
+			"    \"os/exec\"",
+		)
+	}
+
 	out = append(out,
 		")",
-		"func main() {",
+		"",
+		"// GameState holds all your precious game variables!",
+		"type GameState struct {",
+	)
+
+	var stateVars []string
+	for _, raw := range lines {
+		line := strings.TrimSpace(raw)
+		switch {
+		case strings.HasPrefix(line, "give "):
+			rest := strings.TrimPrefix(line, "give ")
+			parts := strings.SplitN(rest, "=", 2)
+			if len(parts) == 2 {
+				varName := strings.TrimSpace(parts[0])
+				if !contains(stateVars, varName) {
+					stateVars = append(stateVars, varName)
+				}
+			}
+		case strings.HasPrefix(line, "read "):
+			varName := strings.TrimSpace(strings.TrimPrefix(line, "read "))
+			varName = strings.TrimPrefix(varName, "-p ")
+			if !strings.Contains(varName, "\"") && !contains(stateVars, varName) {
+				stateVars = append(stateVars, varName)
+			}
+		case strings.HasPrefix(line, "random "):
+			parts := strings.Fields(strings.TrimPrefix(line, "random "))
+			if len(parts) >= 1 && !contains(stateVars, parts[0]) {
+				stateVars = append(stateVars, parts[0])
+			}
+		case strings.HasPrefix(line, "score "):
+			parts := strings.Fields(strings.TrimPrefix(line, "score "))
+			if len(parts) >= 1 && !contains(stateVars, parts[0]) {
+				stateVars = append(stateVars, parts[0])
+			}
+		case strings.HasPrefix(line, "level "):
+			parts := strings.Fields(strings.TrimPrefix(line, "level "))
+			if len(parts) >= 1 && !contains(stateVars, parts[0]) {
+				stateVars = append(stateVars, parts[0])
+			}
+		}
+	}
+
+	for _, varName := range stateVars {
+		out = append(out, "    "+varName+" interface{} `json:\""+varName+"\"`")
+	}
+	// add callonce tracking fields~ so we know which blocks already ran!
+	for blockName := range callonceBlocks {
+		out = append(out, "    "+blockName+"_called bool `json:\""+blockName+"_called\"`")
+	}
+	out = append(out, "}")
+	out = append(out, "")
+
+	out = append(out, "func main() {",
 	)
 
 	if hasRandom {
@@ -183,10 +311,24 @@ func transpileInternal(input string, verbose bool) string {
 		)
 	}
 
+	if hasJson {
+		out = append(out,
+			"    gameState := &GameState{}",
+		)
+		// initialize all callonce flags to false~ so they can be called! meow~
+		for blockName := range callonceBlocks {
+			out = append(out, "    gameState."+blockName+"_called = false")
+		}
+	}
+
 	if verbose {
 		fmt.Println("Import analysis:")
-		fmt.Printf("         - fmt: yes\n")
-		fmt.Printf("         - os: yes\n")
+		if hasFmt {
+			fmt.Printf("         - fmt: yes\n")
+		}
+		if hasRead || hasFileOps || hasSusu {
+			fmt.Printf("         - os: yes\n")
+		}
 		if hasRead {
 			fmt.Printf("         - bufio, strings: yes (read command detected)\n")
 		}
@@ -195,6 +337,12 @@ func transpileInternal(input string, verbose bool) string {
 		}
 		if hasFileOps {
 			fmt.Printf("         - io/ioutil: yes (file operations detected)\n")
+		}
+		if hasJson {
+			fmt.Printf("         - encoding/json: yes (bulk save/load detected)\n")
+		}
+		if hasRun {
+			fmt.Printf("         - os/exec: yes (run command detected)\n")
 		}
 	}
 
@@ -217,39 +365,75 @@ func transpileInternal(input string, verbose bool) string {
 		case line == "gameloop end":
 			indentLevel--
 			out = append(out, indent+"}")
-		case line == "clear":
+		// named game blocks like Game1, Boss, etc~ can call 'em whenever!
+		case strings.HasSuffix(line, " start"):
+			blockName := strings.TrimSuffix(line, " start")
+			if gameBlocks[blockName] {
+				out = append(out, "")
+				out = append(out, "func "+blockName+"() {")
+				indentLevel++
+				if verbose {
+					fmt.Printf("Detected: game block start %s\n", blockName)
+				}
+			}
+		case strings.HasSuffix(line, " end"):
+			blockName := strings.TrimSuffix(line, " end")
+			if gameBlocks[blockName] {
+				indentLevel--
+				out = append(out, "}")
+				out = append(out, "")
+			}
+		// call a named game block! like calling a friend over to play~
+		case strings.HasPrefix(line, "call "):
+			blockName := strings.TrimPrefix(line, "call ")
+			if gameBlocks[blockName] {
+				out = append(out, indent+blockName+"()")
+				if verbose {
+					fmt.Printf("Detected: call to game block %s\n", blockName)
+				}
+			}
+		// callonce! call a block only once~ like a special treat!
+		case strings.HasPrefix(line, "callonce "):
+			blockName := strings.TrimPrefix(line, "callonce ")
+			if gameBlocks[blockName] && callonceBlocks[blockName] {
+				out = append(out, indent+"if !gameState."+blockName+"_called {")
+				out = append(out, indent+"    "+blockName+"()")
+				out = append(out, indent+"    gameState."+blockName+"_called = true")
+				out = append(out, indent+"} else {")
+				out = append(out, indent+"    // nya! already called this block once~")
+				out = append(out, indent+"}")
+				if verbose {
+					fmt.Printf("Detected: callonce to game block %s\n", blockName)
+				}
+			}
 			out = append(out, indent+"fmt.Print(\"\\033[2J\\033[H\")")
 		case strings.HasPrefix(line, "border "):
 			boxType := strings.TrimPrefix(line, "border ")
 			switch boxType {
-			case "simple":
-				out = append(out, indent+"fmt.Println(\"┌─────────────────────┐\")")
-				out = append(out, indent+"fmt.Println(\"│                     │\")")
-				out = append(out, indent+"fmt.Println(\"└─────────────────────┘\")")
-			case "double":
-				out = append(out, indent+"fmt.Println(\"╔═════════════════════╗\")")
-				out = append(out, indent+"fmt.Println(\"║                     ║\")")
-				out = append(out, indent+"fmt.Println(\"╚═════════════════════╝\")")
-			case "thick":
-				out = append(out, indent+"fmt.Println(\"▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓\")")
-				out = append(out, indent+"fmt.Println(\"▓                   ▓\")")
-				out = append(out, indent+"fmt.Println(\"▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓\")")
+			case "top":
+				out = append(out, indent+"fmt.Println(strings.Repeat(\"═\", 50))")
+			case "mid":
+				out = append(out, indent+"fmt.Println(strings.Repeat(\"─\", 50))")
+			case "bot":
+				out = append(out, indent+"fmt.Println(strings.Repeat(\"═\", 50))")
 			}
-			// fancy dialog boxes! makes the game feel all professional-like~
-			// adds ">>>" to make it look like someone important is talking, meow!
 		case strings.HasPrefix(line, "dialog "):
 			stats["dialogs"]++
 			dialogText := strings.TrimPrefix(line, "dialog ")
 			goCode := transpileStringInterpolation(dialogText)
-			out = append(out, indent+"fmt.Println(\">>> \" + "+goCode+")")
+			out = append(out, indent+"fmt.Println(\"════════════════════════════════════════════════════\")")
+			out = append(out, indent+"fmt.Println(\" \" + "+goCode+")")
+			out = append(out, indent+"fmt.Println(\"════════════════════════════════════════════════════\")")
 			if verbose {
 				fmt.Printf("Detected: dialog (total: %d)\n", stats["dialogs"])
 			}
 		case strings.HasPrefix(line, "menu "):
 			stats["menus"]++
-			parts := strings.SplitN(strings.TrimPrefix(line, "menu "), " ", 2)
-			if len(parts) >= 1 {
-				out = append(out, indent+"fmt.Println(\"[1] Option 1\")", indent+"fmt.Println(\"[2] Option 2\")", indent+"fmt.Println(\"[3] Option 3\")")
+			menuContent := strings.TrimPrefix(line, "menu ")
+			options := strings.Split(menuContent, ",")
+			out = append(out, indent+"fmt.Println(\"[MENU]\")")
+			for i, opt := range options {
+				out = append(out, indent+"fmt.Println(\"  ("+fmt.Sprintf("%d", i+1)+") " + strings.TrimSpace(opt)+"\")")
 			}
 			if verbose {
 				fmt.Printf("Detected: menu (total: %d)\n", stats["menus"])
@@ -306,7 +490,7 @@ func transpileInternal(input string, verbose bool) string {
 				}
 				out = append(out, indent+"fmt.Printf("+formatStr+", "+statValue+")")
 			}
-			// loading and saving files! like hiding your toys and finding them later
+		// loading and saving files! like hiding your toys and finding them later
 		case strings.HasPrefix(line, "load "):
 			stats["file_ops"]++
 			filePath := strings.TrimPrefix(line, "load ")
@@ -331,6 +515,50 @@ func transpileInternal(input string, verbose bool) string {
 				if verbose {
 					fmt.Printf("Detected: save to %s (total file ops: %d)\n", filePath, stats["file_ops"])
 				}
+			}
+		// BULK SAVE
+		case strings.HasPrefix(line, "saveall "):
+			stats["file_ops"]++
+			filePath := strings.TrimPrefix(line, "saveall ")
+			pathExpr := expandPath(filePath)
+			out = append(out,
+				indent+"for _, varName := range []string{"+stringifyVarList(stateVars)+"} {",
+				indent+"    switch varName {",
+			)
+			for _, varName := range stateVars {
+				out = append(out, indent+"    case \""+varName+"\":")
+				out = append(out, indent+"        gameState."+varName+" = "+varName)
+			}
+			out = append(out,
+				indent+"    }",
+				indent+"}",
+				indent+"jsonData, _ = json.MarshalIndent(gameState, \"\", \"  \") // reusing jsonData, like a good maid recycling~",
+				indent+"ioutil.WriteFile("+pathExpr+", jsonData, 0644)",
+			)
+			if verbose {
+				fmt.Printf("Detected: saveall to %s (total file ops: %d)\n", filePath, stats["file_ops"])
+			}
+		// BULK LOAD!
+		case strings.HasPrefix(line, "loadall "):
+			stats["file_ops"]++
+			filePath := strings.TrimPrefix(line, "loadall ")
+			pathExpr := expandPath(filePath)
+			out = append(out,
+				indent+"jsonData, _ := ioutil.ReadFile("+pathExpr+")",
+				indent+"json.Unmarshal(jsonData, gameState)",
+				indent+"// Restore all variables from state",
+			)
+			for _, varName := range stateVars {
+				out = append(out, indent+"if gameState."+varName+" != nil {")
+				out = append(out, indent+"    switch v := gameState."+varName+".(type) {")
+				out = append(out, indent+"    case float64:")
+				out = append(out, indent+"        "+varName+" = int(v)")
+				out = append(out, indent+"    // strings from json stay as interface{}, meow!")
+				out = append(out, indent+"    }")
+				out = append(out, indent+"}")
+			}
+			if verbose {
+				fmt.Printf("Detected: loadall from %s (total file ops: %d)\n", filePath, stats["file_ops"])
 			}
 		case strings.HasPrefix(line, "damage "):
 			stats["damage"]++
@@ -409,6 +637,23 @@ func transpileInternal(input string, verbose bool) string {
 			if verbose {
 				fmt.Printf("Detected: conditional (total: %d)\n", stats["conditionals"])
 			}
+		case strings.HasPrefix(line, "peek "):
+			stats["conditionals"]++
+			rest := strings.TrimPrefix(line, "peek ")
+			if strings.HasPrefix(rest, "\"") {
+				endQuote := strings.Index(rest[1:], "\"")
+				if endQuote != -1 {
+					filePath := rest[1 : endQuote+1]
+					pathExpr := expandPath("\"" + filePath + "\"")
+					out = append(out,
+						indent+"if _, err := os.Stat("+pathExpr+"); err == nil {",
+					)
+					indentLevel++
+					if verbose {
+						fmt.Printf("Detected: peek check for %s (total: %d)\n", filePath, stats["conditionals"])
+					}
+				}
+			}
 		case line == "} else {":
 			indentLevel--
 			out = append(out, strings.Repeat("    ", indentLevel)+"} else {")
@@ -461,7 +706,6 @@ func transpileInternal(input string, verbose bool) string {
 				varName := strings.TrimSpace(parts[0])
 				value := strings.TrimSpace(parts[1])
 
-				// Check if it's a string literal or needs interpolation
 				goValue := transpileStringInterpolation(value)
 
 				if !declared[varName] {
@@ -476,11 +720,24 @@ func transpileInternal(input string, verbose bool) string {
 				}
 			}
 			// "susu" means bye-bye! time to end the program and take a nap~
-			// (honestly such a silly name for exit, but that's what makes it fun!)
 		case strings.HasPrefix(line, "susu"):
 			out = append(out, indent+"os.Exit(0)")
 			if verbose {
 				fmt.Println("Detected: susu (program exit)")
+			}
+		case strings.HasPrefix(line, "run "):
+			stats["run"]++
+			cmd := strings.TrimPrefix(line, "run ")
+			// run something in terminal, most of it!
+			escapedCmd := strings.ReplaceAll(cmd, "\"", "\\\"")
+			out = append(out,
+				indent+"cmd := exec.Command(\"sh\", \"-c\", \""+escapedCmd+"\")",
+				indent+"cmd.Stdout = os.Stdout",
+				indent+"cmd.Stderr = os.Stderr",
+				indent+"cmd.Run()",
+			)
+			if verbose {
+				fmt.Printf("Detected: run %s\n", cmd)
 			}
 		}
 	}
@@ -499,8 +756,27 @@ func transpileInternal(input string, verbose bool) string {
 		fmt.Printf("Heal operations: %d\n", stats["heal"])
 		fmt.Printf("Score operations: %d\n", stats["score"])
 		fmt.Printf("Level operations: %d\n", stats["level"])
+		fmt.Printf("Run commands: %d\n", stats["run"])
 		fmt.Println("=======================")
 	}
 
 	return strings.Join(out, "\n")
+}
+
+func contains(slice []string, item string) bool {
+	for _, v := range slice {
+		if v == item {
+			return true
+		}
+	}
+	return false
+}
+
+
+func stringifyVarList(vars []string) string {
+	var parts []string
+	for _, v := range vars {
+		parts = append(parts, "\""+v+"\"")
+	}
+	return strings.Join(parts, ", ")
 }
