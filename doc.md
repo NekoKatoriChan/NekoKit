@@ -114,6 +114,27 @@ read -p "what's your name? " playerName
 
 asks a question first, then waits for input.
 
+### calling yur frwend 
+
+```
+gameloop start
+    read -p "Tap 1 to start" aha
+    
+    if aha == "1" {
+        call Game1    
+    }                 
+                      
+                      
+gameloop end
+
+Game1 start
+    dialog "Game1!"
+    give health=100
+Game1 end
+```
+
+call for other blok, silly! it will return to gameloop when it's called!
+yu can move to callonce if yu want once!
 ### string interpolation (magic $dollar signs!)
 
 ```
@@ -306,6 +327,16 @@ save config settings.ini
 
 writes variable contents to a file. persistence!
 
+#### saveall/loadall
+
+```
+saveall ~/fish.json
+loadall ~/fish.json
+```
+
+BULK load! the cat do it for you, hooman! only with json
+
+
 ### control flow 🔀
 
 #### if/else - decisions decisions
@@ -330,8 +361,14 @@ standard if/else blocks! just like go but triggered by our silly syntax~
 ```
 susu
 ```
+ends everything! time for a nap~ 😴 (required for most scenario)
 
-ends everything! time for a nap~ 😴
+#### run - execute command
+```
+run echo hello!
+```
+
+no quote required, the nerd cat already did that for yu, lazy hooman 😹
 
 
 ## example game 🎯
