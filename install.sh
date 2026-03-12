@@ -1,9 +1,8 @@
 pkg update -y
 pkg upgrade -y
 pkg install golang wget
-rm $PATH/nekokit
-wget https://github.com/NekoKatoriChan/NekoKit/blob/main/test/nekokit
-mv nekokit $PATH/nekokit
+wget https://github.com/NekoKatoriChan/NekoKit/raw/refs/heads/main/test/nekokit -O /data/data/com.termux/files/usr/bin/nekokit
+chmod +x /data/data/com.termux/files/usr/bin/nekokit
 clear
 echo "Installation completed."
 rm -f install.sh
