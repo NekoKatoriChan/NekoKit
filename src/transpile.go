@@ -258,6 +258,11 @@ func transpileInternal(input string, verbose bool) string {
 			parts := strings.SplitN(rest, "=", 2)
 			if len(parts) == 2 {
 				varName := strings.TrimSpace(parts[0])
+				if varName == "gameState" && hasJson {
+					fmt.Printf("⚠️  WARNING: 'gameState' is reserved for JSON persistence!\n")
+					fmt.Printf("    Renaming to 'gs_state' to avoid struct collision\n")
+					varName = "gs_state"
+				}
 				if !contains(stateVars, varName) {
 					stateVars = append(stateVars, varName)
 				}
@@ -287,7 +292,8 @@ func transpileInternal(input string, verbose bool) string {
 	}
 
 	for _, varName := range stateVars {
-		out = append(out, "    "+varName+" interface{} `json:\""+varName+"\"`")
+		capitalizedName := strings.ToUpper(varName[:1]) + varName[1:]
+		out = append(out, "    "+capitalizedName+" interface{} `json:\""+varName+"\"`")
 	}
 	// add callonce tracking fields~ so we know which blocks already ran!
 	for blockName := range callonceBlocks {
@@ -526,8 +532,9 @@ func transpileInternal(input string, verbose bool) string {
 				indent+"    switch varName {",
 			)
 			for _, varName := range stateVars {
+				capitalizedName := strings.ToUpper(varName[:1]) + varName[1:]
 				out = append(out, indent+"    case \""+varName+"\":")
-				out = append(out, indent+"        gameState."+varName+" = "+varName)
+				out = append(out, indent+"        gameState."+capitalizedName+" = "+varName)
 			}
 			out = append(out,
 				indent+"    }",
@@ -549,8 +556,9 @@ func transpileInternal(input string, verbose bool) string {
 				indent+"// Restore all variables from state",
 			)
 			for _, varName := range stateVars {
-				out = append(out, indent+"if gameState."+varName+" != nil {")
-				out = append(out, indent+"    switch v := gameState."+varName+".(type) {")
+				capitalizedName := strings.ToUpper(varName[:1]) + varName[1:]
+				out = append(out, indent+"if gameState."+capitalizedName+" != nil {")
+				out = append(out, indent+"    switch v := gameState."+capitalizedName+".(type) {")
 				out = append(out, indent+"    case float64:")
 				out = append(out, indent+"        "+varName+" = int(v)")
 				out = append(out, indent+"    // strings from json stay as interface{}, meow!")
@@ -632,7 +640,12 @@ func transpileInternal(input string, verbose bool) string {
 			// this is like the cat bed - essential and comfy
 		case strings.HasPrefix(line, "if "):
 			stats["conditionals"]++
-			out = append(out, indent+"if "+strings.TrimPrefix(line, "if ")+" {")
+			condition := strings.TrimPrefix(line, "if ")
+			// handle gameState collision in conditions
+			if hasJson {
+				condition = strings.ReplaceAll(condition, "gameState", "gs_state")
+			}
+			out = append(out, indent+"if "+condition+" {")
 			indentLevel++
 			if verbose {
 				fmt.Printf("Detected: conditional (total: %d)\n", stats["conditionals"])
@@ -705,8 +718,18 @@ func transpileInternal(input string, verbose bool) string {
 			if len(parts) == 2 {
 				varName := strings.TrimSpace(parts[0])
 				value := strings.TrimSpace(parts[1])
+				
+				// handle gameState collision
+				if varName == "gameState" && hasJson {
+					varName = "gs_state"
+				}
 
 				goValue := transpileStringInterpolation(value)
+				
+				// if it's not a string interpolation, strip dollar signs from plain variables
+				if !strings.HasPrefix(value, "\"") {
+					goValue = stripDollar(value)
+				}
 
 				if !declared[varName] {
 					out = append(out, indent+varName+" := "+goValue)
