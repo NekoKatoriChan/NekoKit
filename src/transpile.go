@@ -112,6 +112,7 @@ func transpileInternal(input string, verbose bool) string {
 	lines := strings.Split(input, "\n")
 	var out []string
 
+	// FIX BUG 1: named blocks must become top-level Go functions, NOT nested inside main()!
 	// we now track two separate output slices - mainOut for main(), blockOut for named funcs~
 	// think of it like two separate food bowls. do NOT mix the kibble!! nya!!
 	var mainOut []string
@@ -158,7 +159,12 @@ func transpileInternal(input string, verbose bool) string {
 	hasFmt := false
 	hasSusu := false
 	hasJson := false
+	// hasStrings tracks whether the GENERATED code needs "strings" imported~
+	// border uses strings.Repeat and inventory-remove uses strings.ReplaceAll,
+	// so we can't just tie this to hasRead anymore! separate collar, separate cat~
+	hasStrings := false
 
+	// FIX BUG 3: declared is now scope-aware! each named block gets its OWN declared map~
 	// a variable declared in Boss() has no idea what lives in main(), and that's correct!
 	// like how the cat in the bedroom doesn't know what snacks are in the kitchen~
 	mainDeclared := make(map[string]bool)
@@ -172,6 +178,7 @@ func transpileInternal(input string, verbose bool) string {
 		return mainDeclared
 	}
 
+	// FIX BUG 4: give every 'run' command its own unique _cmdN variable!
 	// no more "cmd redeclared in this block" disasters~ each run gets its own tiny bowl~
 	runCmdCount := 0
 
@@ -226,8 +233,10 @@ func transpileInternal(input string, verbose bool) string {
 		if strings.HasPrefix(line, "read -p ") {
 			hasRead = true
 			hasFmt = true
+			hasStrings = true // read uses strings.TrimSpace in generated code~
 		} else if strings.HasPrefix(line, "read ") {
 			hasRead = true
+			hasStrings = true // same~ TrimSpace needs the strings package!
 		}
 		if strings.HasPrefix(line, "random ") {
 			hasRandom = true
@@ -251,6 +260,11 @@ func transpileInternal(input string, verbose bool) string {
 			strings.HasPrefix(line, "write ") || strings.HasPrefix(line, "writeln ") {
 			hasFmt = true
 		}
+		// border uses strings.Repeat~ inventory remove uses strings.ReplaceAll~
+		// they need strings even if there's not a single 'read' in the whole script! nya!
+		if strings.HasPrefix(line, "border ") || strings.HasPrefix(line, "inventory ") {
+			hasStrings = true
+		}
 		if strings.HasPrefix(line, "peek ") {
 			hasFileOps = true
 		}
@@ -269,10 +283,13 @@ func transpileInternal(input string, verbose bool) string {
 		out = append(out, "    \"os\"")
 	}
 	if hasRead {
-		out = append(out,
-			"    \"bufio\"",
-			"    \"strings\"",
-		)
+		// bufio is only needed for actual reading~ it's the straw for sipping stdin!
+		out = append(out, "    \"bufio\"")
+	}
+	if hasStrings {
+		// strings is needed for TrimSpace (read), Repeat (border), ReplaceAll (inventory)~
+		// keeping it separate from bufio so border/inventory work even without read!
+		out = append(out, "    \"strings\"")
 	}
 	if hasRandom {
 		out = append(out,
@@ -355,20 +372,29 @@ func transpileInternal(input string, verbose bool) string {
 	}
 	out = append(out, "}")
 	out = append(out, "")
+
+	// FIX NEW BUG: reader and gameState MUST be package-level vars, not main() locals!
+	// named block functions are top-level Go funcs - they cannot see inside main()~
+	// it's like leaving the snacks only in one room - the other cats can't reach them! nya!
+	// package-level means every func in the file shares the same cozy bowl~
+	if hasRead {
+		out = append(out, "// reader is package-level so all named block funcs can read input~")
+		out = append(out, "var reader = bufio.NewReader(os.Stdin)")
+		out = append(out, "")
+	}
+	if hasJson || hasCallonce {
+		out = append(out, "// gameState is package-level so named block funcs can use callonce/save/load~")
+		out = append(out, "var gameState = &GameState{}")
+		out = append(out, "")
+	}
+
 	out = append(out, "func main() {")
 
 	if hasRandom {
 		out = append(out, "    rand.Seed(time.Now().UnixNano())")
 	}
-	if hasRead {
-		out = append(out, "    reader := bufio.NewReader(os.Stdin)")
-	}
-
-	// FIX BUG 7 (continued): gameState is needed for BOTH hasJson AND hasCallonce!
-	// we warm up the gameState cat bed regardless, as long as someone needs it~
+	// callonce flags are initialized in main() since it always runs first~
 	if hasJson || hasCallonce {
-		out = append(out, "    gameState := &GameState{}")
-		// initialize all callonce flags to false~ ready to be called for the first time!
 		for blockName := range callonceBlocks {
 			out = append(out, "    gameState."+blockName+"_called = false")
 		}
@@ -431,6 +457,7 @@ func transpileInternal(input string, verbose bool) string {
 				emitLine(strings.Repeat("    ", mainIndent) + "}")
 			}
 
+		// FIX BUG 1: named blocks become real top-level Go functions!
 		// they're not inside main() anymore~ they have their own house now, nya!
 		case strings.HasSuffix(line, " start"):
 			blockName := strings.TrimSuffix(line, " start")
@@ -439,6 +466,7 @@ func transpileInternal(input string, verbose bool) string {
 				savedMainIndent = mainIndent
 				inNamedBlock = true
 				blockIndent = 1
+				// FIX BUG 3: fresh declared scope for each block!
 				// Boss's 'choice' variable has NOTHING to do with main's 'choice'~
 				// they live in completely separate apartments, meow!
 				blockDeclared = make(map[string]bool)
@@ -475,6 +503,7 @@ func transpileInternal(input string, verbose bool) string {
 				}
 			}
 
+		// FIX BUG 2: callonce now ONLY does the callonce logic!
 		// the accidental screen-clear that was leaking out has been caught and scolded~
 		// 'clear' is its own separate case below where it belongs! very organized~
 		case strings.HasPrefix(line, "callonce "):
@@ -589,6 +618,7 @@ func transpileInternal(input string, verbose bool) string {
 			}
 
 		// loading and saving files! like hiding your toys and finding them later~
+		// FIX BUG 8: load now checks declared before using :=!
 		// loading the same file twice in a long script will no longer explode, meow!
 		case strings.HasPrefix(line, "load "):
 			stats["file_ops"]++
@@ -746,6 +776,7 @@ func transpileInternal(input string, verbose bool) string {
 			varName := strings.TrimPrefix(line, "reset ")
 			emitLine(indent + varName + " = 0")
 
+		// FIX BUG 5 (random): random now checks declared before := !
 		// re-randomizing the same variable in a long loop won't explode anymore~
 		// it now reassigns like a well-behaved kitty instead of crashing~
 		case strings.HasPrefix(line, "random "):
@@ -779,6 +810,8 @@ func transpileInternal(input string, verbose bool) string {
 				fmt.Printf("Detected: conditional (total: %d)\n", stats["conditionals"])
 			}
 
+		// FIX BUG 6: peek had an off-by-one error! rest[1:endQuote] was eating the last char~
+		// "save.json" was turning into "save.jso" - missing its 'n' like a scared cat losing its tail!
 		// now correctly uses endQuote+1 to include the full filename~ nya!!
 		case strings.HasPrefix(line, "peek "):
 			stats["conditionals"]++
@@ -825,6 +858,7 @@ func transpileInternal(input string, verbose bool) string {
 			goCode := transpileStringInterpolation(arg)
 			emitLine(indent + "fmt.Println(" + goCode + ")")
 
+		// FIX BUG 5 (read -p): check declared before := !
 		// a variable read twice in a long script will reuse, not redeclare~
 		// like asking for the same toy twice - we already have it, no need to buy another!
 		case strings.HasPrefix(line, "read -p "):
@@ -849,6 +883,7 @@ func transpileInternal(input string, verbose bool) string {
 				}
 			}
 
+		// FIX BUG 5 (plain read): same fix~ declared check before :=!
 		case strings.HasPrefix(line, "read "):
 			varName := strings.TrimPrefix(line, "read ")
 			if !declared[varName] {
@@ -902,6 +937,8 @@ func transpileInternal(input string, verbose bool) string {
 				fmt.Println("Detected: susu (program exit)")
 			}
 
+		// FIX BUG 4: each 'run' command gets its own unique _cmdN variable!
+		// _cmd0, _cmd1, _cmd2... no more "cmd redeclared" disasters in long scripts~
 		// like giving every shell command its own little collar tag, meow!
 		case strings.HasPrefix(line, "run "):
 			stats["run"]++
@@ -919,6 +956,7 @@ func transpileInternal(input string, verbose bool) string {
 		}
 	}
 
+	// FIX BUG 1 (the grand finale!): properly assemble the output file~
 	// main body goes first, then we close main() with its }, then ALL named blocks after!
 	// this is the correct Go file structure, nya!! like a well-organized litter box!
 	out = append(out, mainOut...)
