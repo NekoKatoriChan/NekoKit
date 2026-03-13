@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 )
 
-// This is where the cat spit the go code, hooman!
 func RunGo(code string) {
+	// Create temp file in system temp directory with unique name
 	tmpFile, err := os.CreateTemp("", "nk_*.go")
 	if err != nil {
 		fmt.Printf("error creating temp file: %v\n", err)
@@ -18,6 +18,7 @@ func RunGo(code string) {
 	tmpFileName := tmpFile.Name()
 	defer os.Remove(tmpFileName)
 	
+	// Write code to temp file with error checking
 	_, err = tmpFile.WriteString(code)
 	if err != nil {
 		fmt.Printf("error writing to temp file: %v\n", err)
@@ -25,8 +26,8 @@ func RunGo(code string) {
 		return
 	}
 	tmpFile.Close()
-
-	// run the code!
+	
+	// Run the generated Go code
 	cmd := exec.Command("go", "run", tmpFileName)
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
 	
@@ -36,7 +37,6 @@ func RunGo(code string) {
 	}
 }
 
-// Same as run, but build the bin!
 func BuildGo(code string, outputName string, verbose bool) {
 	if verbose {
 		fmt.Println("Creating temporary build directory...")
