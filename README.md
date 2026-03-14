@@ -1,6 +1,6 @@
 # NekoKit
 
-a silly little transpiler for making text-based games without the boring stuff. write simple commands, get go code. purrfect for termux!
+a silly little transpiler for making text-based games without the boring stuff. write simple commands, get go code. purrfect for termux! (currently take a nap with catnip, may not code in someday) (⁠ㆁ⁠ω⁠ㆁ⁠)
 
 ## install
 
