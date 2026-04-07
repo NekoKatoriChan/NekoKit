@@ -1,20 +1,21 @@
-# nekokit documentation 🐱
 
-*nya nya~ welcome to the official nekokit docs, made with tuna*
+# nekokit scribbles 🐱
 
-## what the hell is this?
+*nya nya~ welcome to da official nekokit docs! made wif 100% premium catnip and fresh tuna! prrr~*
 
-nekokit is a silly little transpiler that turns cute game script files (`.nk` files) into proper go code! it's like teaching a kitten to speak human language, but for programming~ 
+## da heck is dis??
 
-basically you write simple commands, and nekokit translates them into boring adult go code that actually runs. purrfect for making text-based games without all the fussy syntax!
+nekokit is a smol transpiler dat takes cute little game scripts (`.nk` files) and turns dem into big, strict, adult go code! it's liek teaching a kitten to meow in hooman language! 
 
-## installation 
+yu write silly smol commands, and nekokit translates dem into boring go code dat actually runs in yur **Termux** scratching post! purrfect for making text games wifout da grumpy hooman syntax! *swish!*
+
+## gimmee! (instawwation)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/NekoKatoriChan/NekoKit/main/install.sh | sh
 ```
 
-or if you're feeling brave and want to build from source like a real adventurer cat:
+or if yu iz a brave hunter chasing da red dot and wanna build from da source:
 
 ```bash
 git clone https://github.com/NekoKatoriChan/NekoKit.git
@@ -22,46 +23,50 @@ cd NekoKit
 go build -o nekokit
 ```
 
-## usage
+## how to play (usage)
 
-### running a script (no build, just go go go!)
+### run da thing (no wait, jus go!)
 
 ```bash
 nekokit myGame.nk
 ```
 
-this runs your script immediately! like pressing the turbo button on a cat
+dis runs yur script right meow! *pounce!*
 
-### building an executable (for when you wanna share with friends!)
+### building a toy (to share wif frens!)
 
 ```bash
 nekokit myGame.nk --build
 ```
 
-makes a standalone binary! now your game can run without nekokit installed. very cat
+makes a standalone binary! nao yur game can run wifout nekokit installed. very sneaky cat!
 
-### custom output name (because "myGame" is boring)
+### give it a cute name (cuz "myGame" is boring)
 
 ```bash
 nekokit myGame.nk --build --output superCoolGame
 ```
 
-### updating nekokit (get the freshest fish!)
+### update (gitting fresh tuna!)
 
 ```bash
 nekokit --update
 ```
-pulls the latest version from the interwebs and installs it. automatic catnip delivery! 
+pulls da freshest version from da interwebs. automatic catnip delivery! *mlem*
 
-### verbose (which will know what the cat are purring about
+### verbose (sniffing ALL da details)
 ```bash
 nekokit file.nk -v
 ```
-## language reference 
+see exactly how da cat translates yur code behind da scenes! *sniff sniff sniff!*
 
-### variables and assignment
+---
 
-#### give - assigning values (so polite!)
+## cat language dictionary 🐾
+
+### toys n' keeping dem (variables)
+
+#### give - polite giving!
 
 ```
 give x=10
@@ -70,274 +75,191 @@ give name="whiskers"
 give health=maxHealth
 ```
 
-the `give` command is like offering a gift to a variable! much nicer than just `=` all alone~
+da `give` command is liek offering a gift to a variable! much nicer dan jus `=` all alone!
+*(nerd note: da cat compiler automatically protects yu from "unused variable" panics by adding `_ = varName`! we keeps da Go compiler well-fed and happy! nya!)*
 
-supports:
-- numbers: `give score=100`
-- expressions: `give total=score+bonus`
-- strings: `give greeting="hello!"`
-- variables: `give currentHP=maxHP`
+### meowing at hoomans (in/out)
 
-### input/output (talking to humans!)
-
-#### write - print without newline
+#### write & writeln - meow loudly!
 
 ```
 write "hello "
-write "world"
+write "hooman"
+writeln "meow meow!"
 ```
 
-outputs: `hello world` (all on same line, like cats walking in a line)
+`write` outputs on da same line (liek cats walking in a straight line). `writeln` gives it a fresh new line!
 
-#### writeln - print with newline
-
-```
-writeln "meow meow"
-writeln "nya nya"
-```
-
-each one gets its own line!
-
-#### read - get input from user
+#### read - listening to hooman
 
 ```
 read playerName
 ```
 
-waits for the hooman to type something and stores it.
+waits for da hooman to type sumthing and stores it in da bowl.
 
-#### read -p - read with a prompt 
+#### read -p - read wif a prompt 
 
 ```
-read -p "what's your name? " playerName
+read -p "what's yur name? " playerName
 ```
 
-asks a question first, then waits for input.
+asks a question first, den waits for input. so polite! *purr*
 
-### calling yur frwend 
+### chasing tails & calling frens! 🔁
+
+#### gameloop - chasing tail forever!
 
 ```
 gameloop start
-    read -p "Tap 1 to start" aha
-    
+    read -p "tap 1 to start: " aha
     if aha == "1" {
         call Game1    
-    }                 
-                      
-                      
+    }
 gameloop end
+```
 
+runs forever until yu stop it! purrfect for games dat keep going and going!
+
+#### calling yur frens! (named bloks)
+
+```
 Game1 start
-    dialog "Game1!"
+    dialog "welcome to Game1!"
     give health=100
 Game1 end
 ```
 
-call for other blok, silly! it will return to gameloop when it's called!
-yu can move to callonce if yu want once!
-### string interpolation (magic $dollar signs!)
+yu can make yur own bloks of code and `call Game1` to run dem! dey have deir own clean litter boxes (variable scopes), so dey won't mess wif yur main toys! do NOT mix da kibbles!
+
+#### callonce - VIP cats ONLY!
+
+```
+callonce BossIntro
+```
+
+calls a blok, but **only once per game**! if yu try to call it again, da cat just ignores yu and licks a paw. powered by a super-fast tracking map! *mew!*
+
+### magic $ treats (string interpolation)
 
 ```
 writeln "hello, $name!"
-writeln "you have $gold coins"
+writeln "yu have $gold coins"
 ```
 
-the `$variable` syntax gets replaced with actual values! it's like mail merge but for cats~
+da `$variable` syntax gets replaced wif actual values! it's liek hiding a treat inside a toy~
 
-### game-specific commands 
+### fancy UI tricks 🎮
 
-#### gameloop - the main game loop!
-
-```
-gameloop start
-  clear
-  writeln "still playing..."
-  writeln "Ctrl+C to quit!"
-read -p "also, type 'quit' to exit: " input
-  if input == "quit"{
-    susu
-    }
-    else{
-    susu
-    }
-gameloop end
-```
-
-runs forever until you stop it! perfect for games that keep going and going like an energetic kitten~
-
-#### clear - clear the screen
+#### clear - swiping everything off da table!
 
 ```
 clear
 ```
 
-makes everything disappear! *poof!* 
+makes everything disappear! *crash!* heavily optimized wif native ANSI sequences for Termux!
 
-#### border - draw pretty boxes
-
-```
-border simple
-border double  
-border thick
-```
-
-draws ascii art borders! makes your game look all professional-like:
-- `simple`: `┌─┐` style (clean and minimal)
-- `double`: `╔═╗` style (fancy double lines!)
-- `thick`: `▓▓▓` style (EXTRA THICC)
-
-#### dialog - character speech
+#### border - pretty boxes to sit in
 
 ```
-dialog "the cat says: meow meow!"
-dialog "hero: i must save the kingdom!"
+border top
+border mid
+border bot
 ```
 
-adds `>>>` before text to make it look like important dialog. very dramatic! 🎭
+draws ascii art borders! cuz if it fits, i sits!
+- `top` and `bot`: `═════════════════════════` (thicc edge!)
+- `mid`: `─────────────────────────` (thin divider!)
 
-#### prompt - visual input prompt
-
-```
-prompt "choose your destiny: "
-```
-
-shows ` > ` before the text. makes choices feel official~
-
-#### menu - quick menu display
+#### dialog, prompt, menu - fancy meows!
 
 ```
-menu options
+dialog "da cat says: meow meow!"
+prompt "choose yur destiny: "
+menu fight, defend, run away
 ```
 
-displays a simple numbered menu:
-```
-[1] Option 1
-[2] Option 2  
-[3] Option 3
-```
+- `dialog` prints fancy text inside a cinematic box!
+- `prompt` puts a cute ` > ` arrow before yur text!
+- `menu` takes a comma-separated list and automatically turns it into a numbered list `(1) fight, (2) defend`! 
 
-(note: you still need to handle the input yourself! this just shows the pretty menu)
+### stats and counting kibbles 📊
 
-### stats and game values 📊
-
-#### stat - display a stat nicely
+#### stat - showing off yur stuff
 
 ```
 stat "health" $playerHP
 stat level $currentLevel
 ```
 
-formats and prints stats like: `health: 100` or `level: 5`
+formats and prints stats liek: `health: 100` or `level: 5`.
 
-works with quoted or unquoted names!
-
-#### score - add to score (with auto-declaration!)
+#### score & level - math made easy!
 
 ```
 score points 10
-score points 5
+level bossStage 5
 ```
 
-first time creates the variable, after that it adds to it. smart kitty! 
+first time creates da variable, after dat `score` ADDS to it (`+=`), while `level` SETS it (`=`). smart kitty! 
 
-#### level - set level value
-
-```
-level playerLevel 1
-level playerLevel 5
-```
-
-similar to score but uses `=` instead of `+=` for setting exact values~
-
-#### damage - subtract from health
+#### damage & heal - bites and naps
 
 ```
 damage playerHP 10
-damage bossHP $attackPower
-```
-
-reduces a value. ouch! 
-
-#### heal - restore health  
-
-```
 heal playerHP 25
-heal playerHP $potionPower
 ```
 
-adds back health! nom nom healing herbs~ 
+subtracts or adds to a value! ouchie! and den nom nom healing herbs~ 
 
-#### reset - set to zero
+#### reset - dropping it in da litter box
 
 ```
 reset score
 ```
 
-back to nothing! fresh start like a new day~
+back to zero! fresh start liek a new day~
 
-### inventory system 
-
-#### inventory add - put item in inventory
-
-```
-inventory bag add "sword"
-inventory bag add $foundItem
-```
-
-adds items to your collection!
-
-#### inventory remove - take item out
-
-```
-inventory bag remove "sword"
-```
-
-removes items.
-
-### random numbers 🎲
+### random - knocking random things over 🎲
 
 ```
 random roll 6
-random damage 20
 ```
 
-generates random number from 0 to (max-1). perfect for dice rolls and critical hits!
+generates random number from 0 to 5 (max-1). modern Go seeds it automatically, so no need to wake da cat up to do it!
 
-requires the number to be a max value, so `random roll 6` gives you 0-5 (like a d6!)
+### burying n' digging up toys (files) 💾
 
-### file operations 
-
-#### load - read file contents
+#### load - dig up a toy
 
 ```
 load ~/saveGame.txt
-load config.ini
+load myData ~/custom_path/file.txt
 ```
 
-reads file into a variable named after the file (without extension). 
+reads a file! if yu jus say `load ~/my-save.txt`, da cat will automatically name da variable `my_save` (replacing dashes wif underscores so Go doesn't hiss at yu!). Or yu can explicitly name it wif `load myData [path]`!
 
-`load saveGame.txt` creates variable `saveGame` with file contents!
-
-#### save - write to file  
+#### save - bury a toy for later
 
 ```
 save gameData ~/saveGame.txt
-save config settings.ini
 ```
 
-writes variable contents to a file. persistence!
+writes yur variable contents to a file. hiding it from da dog!
 
-#### saveall/loadall
+#### peek - sniffing for files
 
 ```
-saveall ~/fish.json
-loadall ~/fish.json
+peek ~/saveGame.txt {
+    writeln "File found! *happy meow*"
+} else {
+    writeln "No file here, nya!"
+}
 ```
 
-BULK load! the cat do it for you, hooman! only with json
+da cat sniffs to see if a file exists before yu try to open it!
 
-
-### control flow 🔀
+### choosing which bowl to eat from 🔀
 
 #### if/else - decisions decisions
 
@@ -345,91 +267,76 @@ BULK load! the cat do it for you, hooman! only with json
 if playerHP <= 0 {
   writeln "game over nya..."
   susu
-}
-
-if hasKey == true {
-  writeln "door unlocked!"
 } else {
-  writeln "you need a key!"
+  writeln "keep fighting!"
 }
 ```
 
-standard if/else blocks! just like go but triggered by our silly syntax~
+standard if/else blocks! 
 
-#### susu - exit program
+#### susu - nap time!
 
 ```
 susu
 ```
-ends everything! time for a nap~ 😴 (required for most scenario)
+ends everything! time for a big sleepy nap~ 😴 (saying bye-bye to da program!)
 
-#### run - execute command
-```
-run echo hello!
-```
-
-no quote required, the nerd cat already did that for yu, lazy hooman 😹
-
-#### peek - searching for yur fren
+#### run - doing termux magics
 
 ```
-peek "~/data.txt"
-       writeln "File found!"
-    } else {
-       writeln "No file here, nya!"
-  }
+run clear && ls
 ```
 
-the cats search it for yu, no problem!
+runs standard shell commands! strictly mapped to `sh` so it plays purrfectly wif Termux environments! no quotes required, da nerd cat already escaped dem for yu! 😹
 
-## example game 🎯
+---
 
-here's a tiny adventure game to show it all working together:
+## purrfect kitty quest! (example game) 🎯
+
+here's a smol adventure game to show it all working together:
 
 ```
 clear
-border double
-
+border top
 writeln "🐱 KITTY QUEST 🐱"
-writeln ""
+border bot
 
-read -p "enter your cat name: " playerName
+read -p "enter yur cat name: " playerName
 give playerHP=100
-give gold=0
+score gold 0
 
 gameloop start
   clear
-  writeln "========== ADVENTURE =========="
+  border top
   stat "name" $playerName
   stat "health" $playerHP  
   stat "gold" $gold
-  writeln "==============================="
+  border bot
   writeln ""
   
-  dialog "you encounter a wild mouse!"
+  dialog "yu encounter a wild mouse!"
   
-  writeln "[1] fight"
-  writeln "[2] run away"
+  menu fight, run away
   prompt "choice: "
   read choice
   
-  if choice == "1"
-    random damage 15
-    damage playerHP $damage
+  if choice == "1" {
+    random dmg 15
+    damage playerHP $dmg
     writeln ""
-    dialog "mouse attacks! took $damage damage!"
+    dialog "mouse attacks! took $dmg damage! *hiss!*"
     
-    if playerHP <= 0
+    if playerHP <= 0 {
       writeln ""
       writeln "💀 GAME OVER 💀"
       susu
     }
     
     score gold 10
-    writeln "you won! found 10 gold~"
+    writeln "yu won! found 10 gold~ *purr*"
   } else {
     writeln ""
-    dialog "you ran away safely! coward..."
+    dialog "yu ran away safely! coward hooman..."
   }
   
   writeln ""
@@ -438,51 +345,26 @@ gameloop start
 gameloop end
 ```
 
-## technical details for nerds 🤓
+---
 
-### how it works internally
+## nerdy cat stuff 🤓
 
-1. reads your `.nk` file
-2. transpiles it into go code using pattern matching
-3. either runs it with `go run` or builds it with `go build`
-4. cleans up temporary files like a good kitty cleaning its paws~
+### how it works internally (da braincells)
 
-### the transpiler does:
+1. sniffs yur `.nk` file.
+2. transpiles it into go code using cute pattern matching.
+3. either runs it wif `go run` or builds it wif `go build`.
+4. cleans up temporary files liek a good kitty cleaning its paws~
 
-- string interpolation (`$var` → `fmt.Sprintf`)
-- import detection (only imports what you use!)
-- variable declaration tracking (uses `:=` first time, `=` after)
-- indent management for proper go formatting
-- path expansion (`~/` → actual home directory)
+### da transpiler features:
 
-### files in this project
-
-- `main.go` - CLI argument parsing and file handling
-- `transpile.go` - the big transpiler brain! 🧠
-- `run.go` - running and building utilities
-
-## contributing 
-
-found a bug? want to add a feature? 
-
-purrfect! just remember:
-- you are a cat
-- keep it simple and silly
-- write cat-style comments (lowercase, playful, helpful!)
-- test your changes with actual `.nk` files
-
-## why does this exist? 🤔
-
-why not?
-
-plus it's fun to have a programming language that says "nya~" 
+- **Termux Native**: Optimized paths (`~/` expands to Termux `$HOME`), standard `sh` execution, and raw ANSI clearing. loves da terminal box!
+- **Strict Go Compliance**: Bypasses da annoying "declared and not used" errors by generating `_ = varName` safety nets! 
+- **Separate Bowls (Block Scoping)**: Named game bloks act as isolated Go functions. Main variables and blok variables don't mix! Keep da food bowls separate!
+- **Callonce Tracker**: Uses a lightning-fast `map[string]bool` to remember what VIP bloks have been sniffed already.
 
 ## license & credits ✨
 
-made with love by cats, for cats (and cat-loving humans!)
+made wif love by cats, for cats (and cat-loving hoomans!)
 
 *meow meow, happy coding!* 🐾
-
----
-
-*this documentation was written at 3am fueled by catnip tea and the desire to make programming more adorable*
