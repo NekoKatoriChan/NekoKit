@@ -5,7 +5,7 @@ a silly little transpiler for making text-based games without the boring stuff. 
 ## install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/NekoKatoriChan/NekoKit/main/install.sh | sh
+curl -L https://github.com/NekoKatoriChan/NekoKit/raw/refs/heads/stable/install | sh
 ```
 
 ## quick start
