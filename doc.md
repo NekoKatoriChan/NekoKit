@@ -12,12 +12,14 @@ yu write silly smol commands, and nekokit translates dem into boring go code dat
 ## gimmee! (instawwation)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/NekoKatoriChan/NekoKit/main/install.sh | sh
+curl -L https://raw.githubusercontent.com/NekoKatoriChan/NekoKit/main/install.sh | sh
 ```
 
 or if yu iz a brave hunter chasing da red dot and wanna build from da source:
 
 ```bash
+apt update
+apt install git golang
 git clone https://github.com/NekoKatoriChan/NekoKit.git
 cd NekoKit
 go build -o nekokit
@@ -131,6 +133,8 @@ Game1 end
 ```
 
 yu can make yur own bloks of code and `call Game1` to run dem! dey have deir own clean litter boxes (variable scopes), so dey won't mess wif yur main toys! do NOT mix da kibbles!
+
+💣 cute note from hooman: don't use block inside block, they will explode!
 
 #### callonce - VIP cats ONLY!
 
