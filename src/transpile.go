@@ -616,11 +616,17 @@ func transpileInternal(input string, verbose bool) string {
 			emitLine(indent + cmdVar + ".Stdout = os.Stdout")
 			emitLine(indent + cmdVar + ".Stderr = os.Stderr")
 			emitLine(indent + cmdVar + ".Run()")
+
+		case strings.HasPrefix(line, "create "):
+			stats["file_ops"]++
+			filePath := strings.TrimPrefix(line, "create ")
+			pathExpr := expandPath(filePath)
+			emitLine(indent + "os.WriteFile(" + pathExpr + ", []byte(\"\"), 0644)")
 		}
 	}
 
 	out = append(out, mainOut...)
-	out = append(out, "}") // properly close main() before the named block functions!
+	out = append(out, "}") // properly close main() before the named blok functions!
 	out = append(out, blockOut...)
 
 	if verbose {
