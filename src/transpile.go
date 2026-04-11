@@ -212,7 +212,7 @@ func transpileInternal(input string, verbose bool) string {
 		if strings.HasPrefix(line, "random ") {
 			hasRandom = true
 		}
-		if strings.HasPrefix(line, "load ") || strings.HasPrefix(line, "save ") {
+		if strings.HasPrefix(line, "load ") || strings.HasPrefix(line, "save ") || strings.HasPrefix(line, "create ") {
 			hasFileOps = true
 		}
 		if strings.HasPrefix(line, "run ") {
@@ -626,7 +626,7 @@ func transpileInternal(input string, verbose bool) string {
 	}
 
 	out = append(out, mainOut...)
-	out = append(out, "}") // properly close main() before the named blok functions!
+	out = append(out, "}") // properly close main() before the named block functions!
 	out = append(out, blockOut...)
 
 	if verbose {

@@ -263,6 +263,13 @@ peek ~/saveGame.txt {
 
 da cat sniffs to see if a file exists before yu try to open it!
 
+#### create - touch a files
+
+```
+create fish.txt
+```
+
+give some fish! but's it's empty
 ### choosing which bowl to eat from 🔀
 
 #### if/else - decisions decisions

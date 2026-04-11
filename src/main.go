@@ -101,7 +101,7 @@ func main() {
 }
 
 func updateSystem() {
-	cmd := exec.Command("sh", "-c", "curl -fsSL https://raw.githubusercontent.com/NekoKatoriChan/NekoKit/main/install.sh | sh")
+	cmd := exec.Command("sh", "-c", "curl -fsSL https://raw.githubusercontent.com/NekoKatoriChan/NekoKit/stable/install.sh | sh")
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 	cmd.Run()
 }
