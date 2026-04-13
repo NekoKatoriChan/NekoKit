@@ -300,6 +300,25 @@ run clear && ls
 
 runs standard shell commands! strictly mapped to `sh` so it plays purrfectly wif Termux environments! no quotes required, da nerd cat already escaped dem for yu! 😹
 
+#### web request 
+
+```
+meow request [options] <url>
+
+Options:
+  hiss <METHOD>        → HTTP method (GET, POST, PUT, DELETE, etc)
+  lick <HEADER>        → Add header "Key: Value"
+  spit <DATA>          → Request body (JSON, form data, etc)
+  grab <FILE>          → Download response to file
+  sniff <HEADER>       → Read-only header check (like -i)
+  yowl                 → Verbose output (show headers, body, etc)
+  purr                 → Silent mode (no output except response)
+  scratch <N>          → Retry N times on failure
+  tail                 → Follow redirects (301, 302, etc)
+
+```
+
+curl but cat
 ---
 
 ## purrfect kitty quest! (example game) 🎯

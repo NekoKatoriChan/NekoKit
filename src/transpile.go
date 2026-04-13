@@ -84,6 +84,116 @@ func expandPath(pathStr string) string {
 	return "\"" + pathStr + "\""
 }
 
+// meow request parser! translates cute cat curl into proper http.Request code~ nyaa!
+type MeowRequest struct {
+	Method   string
+	URL      string
+	Headers  []string
+	Data     string
+	GrabFile string
+	Sniff    bool
+	Yowl     bool
+	Purr     bool
+	Scratch  int
+	Tail     bool
+	OutVar   string
+}
+
+func parseMeowRequest(line string) (MeowRequest, bool) {
+	mr := MeowRequest{Method: "GET"}
+	
+	rest := strings.TrimPrefix(line, "meow request ")
+	if rest == line {
+		return mr, false
+	}
+	
+	// handle both backslash continuation and space-separated
+	rest = strings.ReplaceAll(rest, "\\\n", " ")
+	rest = strings.ReplaceAll(rest, "\\", " ")
+	
+	// tokenize carefully to handle quoted strings
+	var tokens []string
+	var current strings.Builder
+	inQuote := false
+	quoteChar := byte(0)
+	
+	for i := 0; i < len(rest); i++ {
+		ch := rest[i]
+		
+		if (ch == '"' || ch == '\'') && (i == 0 || rest[i-1] != '\\') {
+			if !inQuote {
+				inQuote = true
+				quoteChar = ch
+			} else if ch == quoteChar {
+				inQuote = false
+			} else {
+				current.WriteByte(ch)
+			}
+		} else if ch == ' ' && !inQuote {
+			if current.Len() > 0 {
+				tokens = append(tokens, current.String())
+				current.Reset()
+			}
+		} else {
+			current.WriteByte(ch)
+		}
+	}
+	if current.Len() > 0 {
+		tokens = append(tokens, current.String())
+	}
+	
+	// parse tokens
+	for i := 0; i < len(tokens); i++ {
+		token := tokens[i]
+		
+		switch token {
+		case "hiss":
+			if i+1 < len(tokens) {
+				mr.Method = tokens[i+1]
+				i++
+			}
+		case "lick":
+			if i+1 < len(tokens) {
+				mr.Headers = append(mr.Headers, tokens[i+1])
+				i++
+			}
+		case "spit":
+			if i+1 < len(tokens) {
+				mr.Data = tokens[i+1]
+				i++
+			}
+		case "grab":
+			if i+1 < len(tokens) {
+				mr.GrabFile = tokens[i+1]
+				i++
+			}
+		case "sniff":
+			mr.Sniff = true
+		case "yowl":
+			mr.Yowl = true
+		case "purr":
+			mr.Purr = true
+		case "scratch":
+			if i+1 < len(tokens) {
+				fmt.Sscanf(tokens[i+1], "%d", &mr.Scratch)
+				i++
+			}
+		case "tail":
+			mr.Tail = true
+		default:
+			// assume URL if it starts with http or ~/
+			if strings.HasPrefix(token, "http") || strings.HasPrefix(token, "~/") || strings.HasPrefix(token, "/") {
+				mr.URL = token
+			} else if mr.URL != "" && mr.OutVar == "" {
+				// output variable
+				mr.OutVar = token
+			}
+		}
+	}
+	
+	return mr, mr.URL != ""
+}
+
 // grabs just the filename from a path and removes the extension
 // much cleaner now using Go's built-in filepath tools! no more messy string splitting!
 func extractFilename(pathStr string) string {
@@ -202,6 +312,7 @@ func transpileInternal(input string, verbose bool) string {
 	hasCallonce := len(callonceBlocks) > 0
 
 	// third pass: scan for imports! we only take the toys we need~
+	hasMeowRequest := false
 	for _, raw := range lines {
 		line := strings.TrimSpace(raw)
 		if strings.HasPrefix(line, "read -p ") || strings.HasPrefix(line, "read ") {
@@ -220,6 +331,10 @@ func transpileInternal(input string, verbose bool) string {
 		}
 		if strings.HasPrefix(line, "susu") {
 			hasSusu = true
+		}
+		if strings.HasPrefix(line, "meow request ") {
+			hasMeowRequest = true
+			hasFmt = true
 		}
 		if strings.HasPrefix(line, "clear") || strings.HasPrefix(line, "border ") ||
 			strings.HasPrefix(line, "dialog ") || strings.HasPrefix(line, "menu ") ||
@@ -258,6 +373,10 @@ func transpileInternal(input string, verbose bool) string {
 	}
 	if hasRun {
 		out = append(out, "    \"os/exec\"")
+	}
+	if hasMeowRequest {
+		out = append(out, "    \"net/http\"")
+		out = append(out, "    \"io\"")
 	}
 	out = append(out, ")", "")
 
@@ -622,6 +741,107 @@ func transpileInternal(input string, verbose bool) string {
 			filePath := strings.TrimPrefix(line, "create ")
 			pathExpr := expandPath(filePath)
 			emitLine(indent + "os.WriteFile(" + pathExpr + ", []byte(\"\"), 0644)")
+
+		case strings.HasPrefix(line, "meow request "):
+			stats["run"]++
+			mr, valid := parseMeowRequest(line)
+			if !valid {
+				continue
+			}
+			
+			// build the request setup code~ nyaa!
+			reqVar := "_meowReq"
+			emitLine(indent + reqVar + `, _ := http.NewRequest("` + mr.Method + `", "` + mr.URL + `", nil)`)
+			
+			// add headers! lick lick~
+			for _, header := range mr.Headers {
+				parts := strings.SplitN(header, ":", 2)
+				if len(parts) == 2 {
+					key := strings.TrimSpace(parts[0])
+					val := strings.TrimSpace(parts[1])
+					emitLine(indent + reqVar + `.Header.Set("` + key + `", "` + val + `")`)
+				}
+			}
+			
+			// add body if spitting data~
+			if mr.Data != "" {
+				emitLine(indent + reqVar + ".Body = io.NopCloser(strings.NewReader(" + mr.Data + "))")
+			}
+			
+			// do the request! meow~
+			clientVar := "_meowClient"
+			if !declared[clientVar] {
+				emitLine(indent + clientVar + ` := &http.Client{}`)
+				if mr.Tail {
+					// follow redirects
+					emitLine(indent + clientVar + `.CheckRedirect = func(req *http.Request, via []*http.Request) error { return nil }`)
+				}
+				declared[clientVar] = true
+			}
+			
+			// handle retries - scratch scratch!
+			retryVar := "_meowRetries"
+			if !declared[retryVar] {
+				declared[retryVar] = true
+				emitLine(indent + retryVar + " := 0")
+			}
+			
+			respVar := "_meowResp"
+			if mr.OutVar != "" {
+				respVar = mr.OutVar
+			}
+			
+			// retry loop if scratch is set!
+			if mr.Scratch > 0 {
+				emitLine(indent + "for " + retryVar + " := 0; " + retryVar + " < " + fmt.Sprintf("%d", mr.Scratch) + "; " + retryVar + "++ {")
+				bumpIndent(1)
+				indent = getIndent()
+			}
+			
+			emitLine(indent + respVar + `, _ := ` + clientVar + `.Do(` + reqVar + `)`)
+			
+			if mr.Scratch > 0 {
+				emitLine(indent + "if " + respVar + " != nil { break }")
+				bumpIndent(-1)
+				indent = getIndent()
+				emitLine(indent + "}")
+			}
+			
+			// handle response options
+			if !mr.Purr {
+				// yowl (verbose) - show headers
+				if mr.Yowl {
+					emitLine(indent + `fmt.Println("=== RESPONSE HEADERS ===")`)
+					emitLine(indent + "for key, values := range " + respVar + ".Header {")
+					bumpIndent(1)
+					indent = getIndent()
+					emitLine(indent + `fmt.Printf("%s: %s\n", key, values)`)
+					bumpIndent(-1)
+					indent = getIndent()
+					emitLine(indent + "}")
+				}
+				
+				// sniff (headers only) or grab file
+				if mr.GrabFile != "" {
+					emitLine(indent + "body, _ := io.ReadAll(" + respVar + ".Body)")
+					pathExpr := expandPath(mr.GrabFile)
+					emitLine(indent + "os.WriteFile(" + pathExpr + ", body, 0644)")
+					if mr.Yowl {
+						emitLine(indent + `fmt.Printf("Saved to %s\n", ` + pathExpr + `)`)
+					}
+				} else if !mr.Sniff {
+					// show body by default
+					emitLine(indent + "body, _ := io.ReadAll(" + respVar + ".Body)")
+					emitLine(indent + `fmt.Println(string(body))`)
+				}
+			}
+			
+			// close response body~ purr~
+			emitLine(indent + respVar + ".Body.Close()")
+			
+			if mr.OutVar != "" && declared[respVar] {
+				// variable already set above
+			}
 		}
 	}
 
