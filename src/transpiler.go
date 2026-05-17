@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"regexp"
+	"strconv"
 )
 
 // this is the transpiler for making silly game scripts into proper go code!
@@ -200,6 +202,69 @@ func extractFilename(pathStr string) string {
 	base := filepath.Base(pathStr)
 	ext := filepath.Ext(base)
 	return strings.TrimSuffix(base, ext)
+}
+
+// translates fancy English-like conditions into proper Go syntax~ ✨
+// "health is greater than 5"        → "health > 5"
+// "name equals Bob"                 → "name == \"Bob\""
+// "x is less than or equal to 10"   → "x <= 10"
+// "score is not 0"                  → "score != 0"
+func transpileCondition(condition string) string {
+	condition = strings.TrimSpace(condition)
+
+	// already looks like Go code? leave it alone, nya~
+	if strings.ContainsAny(condition, "=!<>") || strings.Contains(condition, "&&") || strings.Contains(condition, "||") {
+		return condition
+	}
+
+	result := condition
+
+	patterns := []struct {
+		pattern string
+		replace string
+	}{
+		// must check compound phrases BEFORE simple ones or they'll partially match!
+		{"\\s+is\\s+greater\\s+than\\s+or\\s+equal\\s+to\\s+", " >= "},
+		{"\\s+is\\s+less\\s+than\\s+or\\s+equal\\s+to\\s+", " <= "},
+		{"\\s+is\\s+equal\\s+to\\s+", " == "},
+		{"\\s+is\\s+at\\s+least\\s+", " >= "},
+		{"\\s+is\\s+at\\s+most\\s+", " <= "},
+		{"\\s+is\\s+greater\\s+than\\s+", " > "},
+		{"\\s+is\\s+bigger\\s+than\\s+", " > "},
+		{"\\s+is\\s+less\\s+than\\s+", " < "},
+		{"\\s+is\\s+smaller\\s+than\\s+", " < "},
+		{"\\s+is\\s+not\\s+", " != "},
+		{"\\s+does\\s+not\\s+equal\\s+", " != "},
+		{"\\s+not\\s+equal\\s+to\\s+", " != "},
+		{"\\s+equals?\\s+", " == "},
+	}
+
+	for _, p := range patterns {
+		re := regexp.MustCompile("(?i)" + p.pattern)
+		result = re.ReplaceAllString(result, p.replace)
+	}
+
+	// auto-quote bare words on the right side of == and !=
+	// "name == Alice" → "name == \"Alice\""
+	re := regexp.MustCompile(`(==|!=)\s+([a-zA-Z_]\w*)`)
+	result = re.ReplaceAllStringFunc(result, func(match string) string {
+		parts := strings.Fields(match)
+		if len(parts) == 2 {
+			op, word := parts[0], parts[1]
+			if !strings.HasPrefix(word, "\"") && !isNumericCondition(word) {
+				return op + " \"" + word + "\""
+			}
+		}
+		return match
+	})
+
+	return result
+}
+
+// checks if a string is a valid number~ uses proper Go parsing, no silly character loops!
+func isNumericCondition(s string) bool {
+	_, err := strconv.ParseFloat(strings.TrimSpace(s), 64)
+	return err == nil
 }
 
 // this is where all the magic happens, turning cute game script into proper go code
@@ -627,7 +692,7 @@ func transpileInternal(input string, verbose bool) string {
 
 		case strings.HasPrefix(line, "if "):
 			stats["conditionals"]++
-			condition := strings.TrimPrefix(line, "if ")
+			condition := transpileCondition(strings.TrimPrefix(line, "if "))
 			emitLine(indent + "if " + condition + " {")
 			bumpIndent(1)
 
@@ -859,3 +924,4 @@ func transpileInternal(input string, verbose bool) string {
 
 	return strings.Join(out, "\n")
 }
+
