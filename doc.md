@@ -1,4 +1,3 @@
-
 # nekokit scribbles 🐱
 
 *nya nya~ welcome to da official nekokit docs! made wif 100% premium catnip and fresh tuna! prrr~*
@@ -115,7 +114,7 @@ asks a question first, den waits for input. so polite! *purr*
 ```
 gameloop start
     read -p "tap 1 to start: " aha
-    if aha == "1" {
+    if aha == "1"
         call Game1    
     }
 gameloop end
@@ -272,18 +271,36 @@ create fish.txt
 give some fish! but's it's empty
 ### choosing which bowl to eat from 🔀
 
-#### if/else - decisions decisions
+#### if/else n' else if - decisions decisions!
+
+standard if/else blocks! now supports unlimited chained decision bowls using `else if`!
 
 ```
-if playerHP <= 0 {
+if playerHP <= 0
   writeln "game over nya..."
   susu
-} else {
+} else if playerHP < 20
+  writeln "danger! quick, eat some catnip!"
+} else
   writeln "keep fighting!"
 }
 ```
 
-standard if/else blocks! 
+#### logic treats (and / or) 🍬
+
+yu can check multiple things inside single conditions using `and` and `or` logical treats!
+
+```
+if playerHP > 50 and gold > 100
+  writeln "yu are a rich n' healthy kitty!"
+}
+
+if choice == "1" or choice == "y"
+  writeln "pouncing forward!"
+}
+```
+
+*(nerd note: da cat compiler automatically translates `and` to `&&` and `or` to `||`, while keeping string values inside quotes safe so it doesn't accidentally rename a cat named "brandy" or "orlando"!)*
 
 #### susu - nap time!
 
@@ -317,7 +334,6 @@ Options:
   tail                 → Follow redirects (301, 302, etc)
 
 ```
-
 curl but cat
 ---
 
@@ -364,9 +380,12 @@ gameloop start
     
     score gold 10
     writeln "yu won! found 10 gold~ *purr*"
-  } else {
+  } else if choice == "2"
     writeln ""
     dialog "yu ran away safely! coward hooman..."
+  } else
+    writeln ""
+    dialog "invalid choice! dat button smells weird..."
   }
   
   writeln ""
