@@ -69,68 +69,6 @@ func stripDollar(s string) string {
 	return s
 }
 
-// translates condition operators like "and" to "&&", "or" to "||", and strips variable dollar signs.
-// keeps strings safe so we don't accidentally rename text containing "and" or "or", nya!
-func transpileCondition(cond string) string {
-	var result strings.Builder
-	i := 0
-	n := len(cond)
-	inQuote := false
-	var quoteChar byte
-
-	for i < n {
-		ch := cond[i]
-
-		// keep string literals safe and sound!
-		if (ch == '"' || ch == '\'') && (i == 0 || cond[i-1] != '\\') {
-			if !inQuote {
-				inQuote = true
-				quoteChar = ch
-			} else if ch == quoteChar {
-				inQuote = false
-			}
-			result.WriteByte(ch)
-			i++
-			continue
-		}
-
-		if inQuote {
-			result.WriteByte(ch)
-			i++
-			continue
-		}
-
-		// check for "and" with proper boundaries
-		if i+3 <= n && cond[i:i+3] == "and" && (i == 0 || isBoundary(cond[i-1])) && (i+3 == n || isBoundary(cond[i+3])) {
-			result.WriteString("&&")
-			i += 3
-			continue
-		}
-
-		// check for "or" with proper boundaries
-		if i+2 <= n && cond[i:i+2] == "or" && (i == 0 || isBoundary(cond[i-1])) && (i+2 == n || isBoundary(cond[i+2])) {
-			result.WriteString("||")
-			i += 2
-			continue
-		}
-
-		// strip variable marker '$'
-		if ch == '$' {
-			i++
-			continue
-		}
-
-		result.WriteByte(ch)
-		i++
-	}
-	return result.String()
-}
-
-// checks if a character is a boundary for logical operators
-func isBoundary(b byte) bool {
-	return b == ' ' || b == '\t' || b == '(' || b == ')' || b == '!' || b == '=' || b == '<' || b == '>' || b == '&' || b == '|'
-}
-
 // checks if a byte is a letter, number, or underscore~
 // basically asking "is this a valid part of a variable name?" nya!
 func isAlphaNumericOrUnderscore(b byte) bool {
@@ -743,8 +681,7 @@ func transpileInternal(input string, verbose bool) string {
 		case strings.HasPrefix(line, "if "):
 			stats["conditionals"]++
 			condition := strings.TrimPrefix(line, "if ")
-			transpiledCond := transpileCondition(condition)
-			emitLine(indent + "if " + transpiledCond + " {")
+			emitLine(indent + "if " + condition + " {")
 			bumpIndent(1)
 
 		case strings.HasPrefix(line, "peek "):
@@ -961,3 +898,6 @@ func transpileInternal(input string, verbose bool) string {
 
 	return strings.Join(out, "\n")
 }
+
+
+
