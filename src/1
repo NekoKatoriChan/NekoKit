@@ -258,8 +258,9 @@ func transpileInternal(input string, verbose bool) string {
 	hasFmt := false
 	hasSusu := false
 	hasStrings := false
-
+	
 	declared := make(map[string]bool)
+
 
 	runCmdCount := 0
 
@@ -403,6 +404,7 @@ func transpileInternal(input string, verbose bool) string {
 			continue
 		}
 		indent := getIndent()
+		declared := getDeclared()
 
 		switch {
 		case line == "gameloop start":
@@ -420,6 +422,7 @@ func transpileInternal(input string, verbose bool) string {
 				savedMainIndent = mainIndent
 				inNamedBlock = true
 				blockIndent = 1
+				blockDeclared = make(map[string]bool)
 				blockOut = append(blockOut, "")
 				blockOut = append(blockOut, "// game block '"+blockName+"'~ enter at your own risk! nya~")
 				blockOut = append(blockOut, "func "+blockName+"() {")
@@ -433,6 +436,7 @@ func transpileInternal(input string, verbose bool) string {
 				blockOut = append(blockOut, "")
 				inNamedBlock = false
 				mainIndent = savedMainIndent
+				blockDeclared = make(map[string]bool)
 			}
 
 		case strings.HasPrefix(line, "call "):
@@ -848,4 +852,3 @@ func transpileInternal(input string, verbose bool) string {
 
 	return strings.Join(out, "\n")
 }
-
