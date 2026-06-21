@@ -350,13 +350,13 @@ gameloop start
   prompt "choice: "
   read choice
   
-  if choice == "1" {
+  if choice == "1" 
     random dmg 15
     damage playerHP $dmg
     writeln ""
     dialog "mouse attacks! took $dmg damage! *hiss!*"
     
-    if playerHP <= 0 {
+    if playerHP <= 0 
       writeln ""
       writeln "💀 GAME OVER 💀"
       susu
@@ -375,6 +375,7 @@ gameloop start
 gameloop end
 ```
 
+don't ask me why it work
 ---
 
 ## nerdy cat stuff 🤓
