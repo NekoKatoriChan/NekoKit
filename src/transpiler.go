@@ -222,6 +222,7 @@ func transpileInternal(input string, verbose bool) string {
 	// do NOT mix the kibbles!
 	var mainOut []string
 	var blockOut []string
+	var varDeclarations []string  // ← NEW! Package-level variable declarations
 	inNamedBlock := false
 
 	mainIndent := 1
@@ -259,15 +260,7 @@ func transpileInternal(input string, verbose bool) string {
 	hasSusu := false
 	hasStrings := false
 
-	mainDeclared := make(map[string]bool)
-	blockDeclared := make(map[string]bool)
-
-	getDeclared := func() map[string]bool {
-		if inNamedBlock {
-			return blockDeclared
-		}
-		return mainDeclared
-	}
+	declared := make(map[string]bool)
 
 	runCmdCount := 0
 
@@ -289,7 +282,82 @@ func transpileInternal(input string, verbose bool) string {
 		"run":          0,
 	}
 
-	// first pass: hunt for treats! find all named game blocks
+	// FIRST PASS: collect all variable declarations so they can be output at package level~ meow!
+	for _, raw := range lines {
+		line := strings.TrimSpace(raw)
+		
+		if strings.HasPrefix(line, "read -p ") {
+			rest := strings.TrimPrefix(line, "read -p ")
+			promptEndIdx := strings.LastIndex(rest, "\"")
+			if promptEndIdx > 0 && strings.HasPrefix(rest, "\"") {
+				varName := strings.TrimSpace(rest[promptEndIdx+1:])
+				if !declared[varName] {
+					varDeclarations = append(varDeclarations, "var "+varName+" string")
+					declared[varName] = true
+				}
+			}
+		} else if strings.HasPrefix(line, "read ") {
+			varName := strings.TrimPrefix(line, "read ")
+			if !declared[varName] {
+				varDeclarations = append(varDeclarations, "var "+varName+" string")
+				declared[varName] = true
+			}
+		} else if strings.HasPrefix(line, "load ") {
+			rest := strings.TrimPrefix(line, "load ")
+			parts := strings.Fields(rest)
+			var varName string
+			if len(parts) == 1 {
+				varName = extractFilename(parts[0])
+			} else if len(parts) >= 2 {
+				varName = parts[0]
+			}
+			if varName != "" {
+				dataVar := varName + "Data"
+				if !declared[dataVar] {
+					varDeclarations = append(varDeclarations, "var "+dataVar+" []byte")
+					declared[dataVar] = true
+				}
+				if !declared[varName] {
+					varDeclarations = append(varDeclarations, "var "+varName+" string")
+					declared[varName] = true
+				}
+			}
+		} else if strings.HasPrefix(line, "give ") {
+			rest := strings.TrimPrefix(line, "give ")
+			parts := strings.SplitN(rest, "=", 2)
+			if len(parts) >= 1 {
+				varName := strings.TrimSpace(parts[0])
+				if !declared[varName] {
+					varDeclarations = append(varDeclarations, "var "+varName+" interface{}")
+					declared[varName] = true
+				}
+			}
+		} else if strings.HasPrefix(line, "score ") || strings.HasPrefix(line, "level ") {
+			prefix := "level "
+			if strings.HasPrefix(line, "score ") {
+				prefix = "score "
+			}
+			parts := strings.Fields(strings.TrimPrefix(line, prefix))
+			if len(parts) >= 1 {
+				varName := parts[0]
+				if !declared[varName] {
+					varDeclarations = append(varDeclarations, "var "+varName+" int")
+					declared[varName] = true
+				}
+			}
+		} else if strings.HasPrefix(line, "random ") {
+			parts := strings.Fields(strings.TrimPrefix(line, "random "))
+			if len(parts) >= 1 {
+				varName := parts[0]
+				if !declared[varName] {
+					varDeclarations = append(varDeclarations, "var "+varName+" int")
+					declared[varName] = true
+				}
+			}
+		}
+	}
+
+	// SECOND PASS: hunt for treats! find all named game blocks
 	for _, raw := range lines {
 		line := strings.TrimSpace(raw)
 		if strings.HasSuffix(line, " start") {
@@ -386,6 +454,15 @@ func transpileInternal(input string, verbose bool) string {
 		out = append(out, "")
 	}
 
+	// Add all the package-level variable declarations from .nk file~ meow!
+	if len(varDeclarations) > 0 {
+		out = append(out, "// Game variables declared at package level - global across all bloks!")
+		for _, varDecl := range varDeclarations {
+			out = append(out, varDecl)
+		}
+		out = append(out, "")
+	}
+
 	if hasCallonce {
 		out = append(out, "// tracks which blocks have already been called, meow!")
 		out = append(out, "var callonceTracker = make(map[string]bool)")
@@ -411,7 +488,6 @@ func transpileInternal(input string, verbose bool) string {
 			continue
 		}
 		indent := getIndent()
-		declared := getDeclared()
 
 		switch {
 		case line == "gameloop start":
@@ -429,7 +505,6 @@ func transpileInternal(input string, verbose bool) string {
 				savedMainIndent = mainIndent
 				inNamedBlock = true
 				blockIndent = 1
-				blockDeclared = make(map[string]bool)
 				blockOut = append(blockOut, "")
 				blockOut = append(blockOut, "// game block '"+blockName+"'~ enter at your own risk! nya~")
 				blockOut = append(blockOut, "func "+blockName+"() {")
@@ -443,7 +518,6 @@ func transpileInternal(input string, verbose bool) string {
 				blockOut = append(blockOut, "")
 				inNamedBlock = false
 				mainIndent = savedMainIndent
-				blockDeclared = make(map[string]bool)
 			}
 
 		case strings.HasPrefix(line, "call "):
@@ -549,19 +623,8 @@ func transpileInternal(input string, verbose bool) string {
 			pathExpr := expandPath(filePath)
 			dataVar := varName + "Data"
 			
-			if !declared[dataVar] {
-				emitLine(indent + dataVar + ", _ := os.ReadFile(" + pathExpr + ")")
-				declared[dataVar] = true
-			} else {
-				emitLine(indent + dataVar + ", _ = os.ReadFile(" + pathExpr + ")")
-			}
-			
-			if !declared[varName] {
-				emitLine(indent + varName + " := string(" + dataVar + ")")
-				declared[varName] = true
-			} else {
-				emitLine(indent + varName + " = string(" + dataVar + ")")
-			}
+			emitLine(indent + dataVar + ", _ = os.ReadFile(" + pathExpr + ")")
+			emitLine(indent + varName + " = string(" + dataVar + ")")
 
 		case strings.HasPrefix(line, "save "):
 			stats["file_ops"]++
@@ -599,14 +662,9 @@ func transpileInternal(input string, verbose bool) string {
 			if len(parts) >= 2 {
 				varName := parts[0]
 				amount := stripDollar(parts[1])
-				if !declared[varName] {
-					emitLine(indent + varName + " := " + amount)
-					declared[varName] = true
-				} else {
-					operator := " = "
-					if isScore { operator = " += " } // score adds, level sets~
-					emitLine(indent + varName + operator + amount)
-				}
+				operator := " = "
+				if isScore { operator = " += " } // score adds, level sets~
+				emitLine(indent + varName + operator + amount)
 			}
 
 		case strings.HasPrefix(line, "reset "):
@@ -617,12 +675,7 @@ func transpileInternal(input string, verbose bool) string {
 			if len(parts) >= 2 {
 				varName := parts[0]
 				maxVal := parts[1]
-				if !declared[varName] {
-					emitLine(indent + varName + " := rand.Intn(" + maxVal + ")")
-					declared[varName] = true
-				} else {
-					emitLine(indent + varName + " = rand.Intn(" + maxVal + ")")
-				}
+				emitLine(indent + varName + " = rand.Intn(" + maxVal + ")")
 			}
 
 		case strings.HasPrefix(line, "if "):
@@ -679,10 +732,6 @@ func transpileInternal(input string, verbose bool) string {
 				varName := strings.TrimSpace(rest[promptEndIdx+1:])
 				promptCode := transpileStringInterpolation(prompt)
 
-				if !declared[varName] {
-					emitLine(indent + varName + ` := ""`)
-					declared[varName] = true
-				}
 				emitLine(indent + "fmt.Print(" + promptCode + ")")
 				emitLine(indent + varName + `, _ = reader.ReadString('\n')`)
 				emitLine(indent + varName + " = strings.TrimSpace(" + varName + ")")
@@ -691,10 +740,6 @@ func transpileInternal(input string, verbose bool) string {
 
 		case strings.HasPrefix(line, "read "):
 			varName := strings.TrimPrefix(line, "read ")
-			if !declared[varName] {
-				emitLine(indent + varName + ` := ""`)
-				declared[varName] = true
-			}
 			emitLine(indent + varName + `, _ = reader.ReadString('\n')`)
 			emitLine(indent + varName + " = strings.TrimSpace(" + varName + ")")
 			stats["variables"]++
@@ -711,14 +756,8 @@ func transpileInternal(input string, verbose bool) string {
 					goValue = stripDollar(value)
 				}
 
-				if !declared[varName] {
-					emitLine(indent + varName + " := " + goValue)
-					emitLine(indent + "_ = " + varName) // keeps Go compiler happy like a well-fed kitty!
-					declared[varName] = true
-					stats["variables"]++
-				} else {
-					emitLine(indent + varName + " = " + goValue)
-				}
+				emitLine(indent + varName + " = " + goValue)
+				stats["variables"]++
 			}
 
 		case strings.HasPrefix(line, "susu"):
@@ -859,3 +898,6 @@ func transpileInternal(input string, verbose bool) string {
 
 	return strings.Join(out, "\n")
 }
+
+
+

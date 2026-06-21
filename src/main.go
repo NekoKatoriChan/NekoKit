@@ -28,6 +28,9 @@ func main() {
 			verbose = true
 		case arg == "--build":
 			isBuild = true
+		case arg == "--uninstall":
+			uninstall()
+			return
 		case arg == "--output" && i+1 < len(os.Args):
 			customOutput = os.Args[i+1]
 			i++
@@ -104,4 +107,10 @@ func updateSystem() {
 	cmd := exec.Command("sh", "-c", "curl -fsSL https://raw.githubusercontent.com/NekoKatoriChan/NekoKit/stable/install.sh | sh")
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 	cmd.Run()
+}
+
+func uninstall() {
+	cmd := exec.Command("sh", "-c", "$PATH/nekokit")
+        cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
+        cmd.Run()
 }
